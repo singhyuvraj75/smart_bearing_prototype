@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Activity, Cpu, AlertTriangle, CheckCircle, Zap, Thermometer, Wifi, Database, Filter, Network, Server } from 'lucide-react';
+import { Activity, Cpu, AlertTriangle, CheckCircle, Zap, Thermometer, Database, Filter, Network, Server, ArrowLeft, Radio, Signal } from 'lucide-react';
 
 export default function App() {
     const [isFaulty, setIsFaulty] = useState(false);
@@ -87,6 +87,7 @@ export default function App() {
                 time: new Date().toLocaleTimeString(),
                 isAnomaly,
                 path,
+                latency: Math.floor(12 + Math.random() * 15) + (meshState === 'blocked' ? 45 : 0),
                 payload: {
                     kurt: sensorData.kurtosis.toFixed(2),
                     state: isAnomaly ? "DEFECT" : "CLEAR"
@@ -113,17 +114,28 @@ export default function App() {
     };
 
     return (
-        <div className="min-h-screen bg-slate-50 text-slate-800 font-sans p-4 md:p-6 lg:p-8 selection:bg-blue-100">
+        <div className={`min-h-screen text-slate-800 font-sans p-4 md:p-6 lg:p-8 transition-colors duration-700 ${isFaulty ? 'bg-red-50/40 selection:bg-red-200' : 'bg-slate-50 selection:bg-blue-100'}`}>
+            
+            {/* Top Navigation / Back Button */}
+            <div className="max-w-7xl mx-auto mb-6">
+                <button 
+                    onClick={() => alert("This would route back to the L7 OmniDashboard (Home Portal)")}
+                    className="flex items-center gap-2 text-xs font-black uppercase tracking-widest text-slate-500 hover:text-slate-900 transition-colors bg-white px-4 py-2 rounded-xl border border-slate-200 shadow-sm hover:shadow-md"
+                >
+                    <ArrowLeft className="w-4 h-4" /> Back to Dashboard
+                </button>
+            </div>
 
             {/* Header Bar */}
-            <div className="max-w-7xl mx-auto flex flex-col lg:flex-row justify-between items-start lg:items-center mb-6 pb-6 border-b border-slate-200 gap-4">
+            <div className="max-w-7xl mx-auto flex flex-col lg:flex-row justify-between items-start lg:items-center mb-6 pb-6 border-b border-slate-200 gap-4 relative z-10">
                 <div className="flex items-center gap-4">
-                    <div className="bg-blue-600 p-3 rounded-xl shadow-lg shadow-blue-600/20">
+                    <div className={`p-3 rounded-xl shadow-lg transition-colors duration-500 ${isFaulty ? 'bg-red-600 shadow-red-600/30' : 'bg-blue-600 shadow-blue-600/20'}`}>
                         <Cpu className="w-8 h-8 text-white" />
                     </div>
                     <div>
                         <h1 className="text-2xl font-extrabold text-slate-900 tracking-tight flex items-center gap-2">
                             Layer 1: Edge Intelligence
+                            {isFaulty && <span className="bg-red-100 text-red-700 text-[10px] px-2 py-0.5 rounded-full border border-red-200 animate-pulse ml-2">FAULT DETECTED</span>}
                         </h1>
                         <p className="text-sm text-slate-500 font-medium">Hybrid Piezo/MEMS + Embedded ARM Cortex Processor</p>
                     </div>
@@ -132,25 +144,25 @@ export default function App() {
                 <div className="flex flex-wrap items-center gap-3 bg-white p-2.5 rounded-xl border border-slate-200 shadow-sm w-full lg:w-auto">
                     <span className="text-sm font-bold text-slate-500 pl-2 hidden sm:block">Controls:</span>
 
-                    <div className="flex items-center bg-slate-100 rounded-lg p-1 border border-slate-200">
+                    <div className="flex items-center bg-slate-50 rounded-lg p-1 border border-slate-100">
                         <button
                             onClick={() => setIsFiltered(!isFiltered)}
-                            className={`px-3 py-1.5 rounded-md font-bold text-xs transition-all flex items-center gap-1.5 ${isFiltered ? 'bg-white text-blue-700 shadow-sm' : 'text-slate-500 hover:text-slate-700'}`}
+                            className={`px-3 py-1.5 rounded-md font-bold text-xs transition-all flex items-center gap-1.5 ${isFiltered ? 'bg-white text-blue-700 shadow-sm border border-slate-200/50' : 'text-slate-400 hover:text-slate-600'}`}
                         >
                             <Filter className="w-3.5 h-3.5" /> Band-Pass Filter
                         </button>
                     </div>
 
-                    <div className="flex items-center bg-slate-100 rounded-lg p-1 border border-slate-200">
+                    <div className="flex items-center bg-slate-50 rounded-lg p-1 border border-slate-100">
                         <button
                             onClick={() => setIsFaulty(false)}
-                            className={`px-3 py-1.5 rounded-md font-bold text-xs transition-all ${!isFaulty ? 'bg-white text-emerald-600 shadow-sm' : 'text-slate-500 hover:text-slate-700'}`}
+                            className={`px-4 py-1.5 rounded-md font-bold text-xs transition-all ${!isFaulty ? 'bg-white text-emerald-600 shadow-sm border border-slate-200/50' : 'text-slate-400 hover:text-slate-600'}`}
                         >
                             Healthy
                         </button>
                         <button
                             onClick={() => setIsFaulty(true)}
-                            className={`px-3 py-1.5 rounded-md font-bold text-xs transition-all flex items-center gap-1.5 ${isFaulty ? 'bg-white text-red-600 shadow-sm' : 'text-slate-500 hover:text-slate-700'}`}
+                            className={`px-4 py-1.5 rounded-md font-bold text-xs transition-all flex items-center gap-1.5 ${isFaulty ? 'bg-red-50 text-red-600 shadow-sm border border-red-100' : 'text-slate-400 hover:text-slate-600'}`}
                         >
                             <Zap className="w-3.5 h-3.5" /> Inject Defect
                         </button>
@@ -158,23 +170,25 @@ export default function App() {
                 </div>
             </div>
 
-            <div className="max-w-7xl mx-auto grid grid-cols-1 lg:grid-cols-3 gap-6">
+            <div className="max-w-7xl mx-auto grid grid-cols-1 lg:grid-cols-3 gap-6 relative z-10">
 
                 {/* LEFT COLUMN: Sensor Data & Signal Processing */}
                 <div className="lg:col-span-2 space-y-6">
 
                     {/* Waveform Panel */}
-                    <div className="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden relative">
+                    <div className={`bg-white rounded-2xl border shadow-sm overflow-hidden relative transition-colors duration-500 ${isFaulty ? 'border-red-300 shadow-red-900/5' : 'border-slate-200'}`}>
                         <div className={`absolute top-0 left-0 w-full h-1.5 transition-colors duration-500 ${isFaulty ? 'bg-red-500' : 'bg-blue-600'}`}></div>
-                        <div className="p-5 flex justify-between items-center border-b border-slate-100 bg-slate-50/50">
+                        <div className={`p-5 flex justify-between items-center border-b transition-colors duration-500 ${isFaulty ? 'border-red-100 bg-red-50/50' : 'border-slate-100 bg-slate-50/50'}`}>
                             <div>
                                 <h2 className="text-lg font-bold text-slate-800 flex items-center gap-2">
-                                    <Activity className={`w-5 h-5 ${isFaulty ? 'text-red-500' : 'text-blue-600'}`} /> Raw Vibration Signal
+                                    <Activity className={`w-5 h-5 ${isFaulty ? 'text-red-500 animate-pulse' : 'text-blue-600'}`} /> Raw Vibration Signal
                                 </h2>
-                                <p className="text-xs text-slate-500 font-medium mt-0.5">Time-domain waveform (10kHz Sampling)</p>
+                                <p className="text-xs text-slate-500 font-medium mt-0.5 flex items-center gap-1">
+                                    <Signal className="w-3 h-3" /> Time-domain waveform (10kHz Sampling)
+                                </p>
                             </div>
                             <div className="text-right">
-                                <span className={`text-[10px] font-bold px-2.5 py-1 rounded-full border ${isFiltered ? 'bg-blue-50 text-blue-700 border-blue-200' : 'bg-slate-100 text-slate-500 border-slate-200'}`}>
+                                <span className={`text-[10px] font-black tracking-widest px-2.5 py-1.5 rounded-full border ${isFiltered ? 'bg-blue-50 text-blue-700 border-blue-200' : 'bg-slate-100 text-slate-500 border-slate-200'}`}>
                                     {isFiltered ? 'FILTER ACTIVE' : 'NOISY SIGNAL'}
                                 </span>
                             </div>
@@ -192,7 +206,7 @@ export default function App() {
                                     strokeLinecap="round"
                                     strokeLinejoin="round"
                                     className="transition-colors duration-300"
-                                    style={{ filter: isFaulty ? 'drop-shadow(0px 2px 4px rgba(239,68,68,0.3))' : 'drop-shadow(0px 2px 4px rgba(37,99,235,0.2))' }}
+                                    style={{ filter: isFaulty ? 'drop-shadow(0px 2px 5px rgba(239,68,68,0.4))' : 'drop-shadow(0px 2px 4px rgba(37,99,235,0.2))' }}
                                 />
                             </svg>
 
@@ -214,13 +228,18 @@ export default function App() {
 
                             <div className="h-32 flex items-end justify-between gap-1.5 mt-2 bg-slate-50 p-2 rounded-xl border border-slate-100">
                                 {fftData.map((val, i) => (
-                                    <div key={i} className="w-full flex flex-col items-center group relative">
+                                    <div key={i} className="w-full h-full flex items-end group relative">
                                         <div
                                             className={`w-full rounded-t-sm transition-all duration-75 ${i === 12 && isFaulty ? 'bg-red-500 shadow-[0_0_8px_rgba(239,68,68,0.4)]' : 'bg-blue-400 group-hover:bg-blue-500'}`}
                                             style={{ height: `${val}%` }}
                                         ></div>
                                         {i === 12 && isFaulty && (
-                                            <span className="absolute -top-6 text-[10px] font-bold text-red-600 bg-red-50 px-1 rounded border border-red-100">BPFO</span>
+                                            <span 
+                                                className="absolute left-1/2 -translate-x-1/2 mb-1 text-[10px] font-bold text-red-600 bg-red-50 px-1 rounded border border-red-100 z-10"
+                                                style={{ bottom: `${val}%` }}
+                                            >
+                                                BPFO
+                                            </span>
                                         )}
                                     </div>
                                 ))}
@@ -233,15 +252,17 @@ export default function App() {
                         </div>
 
                         {/* ARM Cortex Edge Compute Load */}
-                        <div className="bg-white rounded-2xl border border-slate-200 shadow-sm p-5">
-                            <h2 className="text-xs font-bold text-slate-500 mb-1 uppercase tracking-wider flex items-center gap-2">
-                                <Server className="w-4 h-4" /> Edge Compute Metrics
-                            </h2>
-                            <p className="text-[10px] text-slate-400 mb-4">Processing power retained at the factory level.</p>
+                        <div className="bg-white rounded-2xl border border-slate-200 shadow-sm p-5 flex flex-col justify-between">
+                            <div>
+                                <h2 className="text-xs font-bold text-slate-500 mb-1 uppercase tracking-wider flex items-center gap-2">
+                                    <Server className="w-4 h-4" /> Edge Compute Metrics
+                                </h2>
+                                <p className="text-[10px] text-slate-400 mb-4">Processing power retained at the factory level.</p>
+                            </div>
 
-                            <div className="space-y-6 mt-2">
+                            <div className="space-y-5">
                                 <div className="bg-slate-50 p-4 rounded-xl border border-slate-100">
-                                    <div className="flex justify-between text-sm mb-2">
+                                    <div className="flex justify-between text-sm mb-2.5">
                                         <span className="text-slate-600 font-medium">ARM CPU Load</span>
                                         <span className={`font-mono font-bold ${sensorData.cpuLoad > 30 ? 'text-orange-500' : 'text-blue-600'}`}>
                                             {sensorData.cpuLoad.toFixed(1)} %
@@ -252,7 +273,7 @@ export default function App() {
                                     </div>
                                 </div>
 
-                                <div className="flex justify-between items-center pt-2">
+                                <div className="flex justify-between items-center pt-1 px-1">
                                     <span className="text-sm text-slate-600 font-medium flex items-center gap-1.5"><Thermometer className="w-4 h-4 text-slate-400" /> Ambient Temp</span>
                                     <span className={`text-sm font-bold ${isFaulty ? 'text-red-600' : 'text-slate-600'}`}>{sensorData.temperature.toFixed(1)}°C</span>
                                 </div>
@@ -265,23 +286,38 @@ export default function App() {
                 <div className="space-y-6">
 
                     {/* Edge AI Analytics Box */}
-                    <div className={`rounded-2xl border shadow-sm p-5 transition-all duration-500 ${isFaulty ? 'bg-red-50 border-red-200' : 'bg-white border-slate-200'}`}>
-                        <h2 className="text-xs font-bold text-slate-500 mb-4 uppercase tracking-wider flex items-center gap-2">
-                            <Database className={`w-4 h-4 ${isFaulty ? 'text-red-500' : 'text-blue-500'}`} /> Extracted Health Indicators
+                    <div className={`rounded-2xl border shadow-sm p-5 transition-all duration-500 ${isFaulty ? 'bg-red-50 border-red-300' : 'bg-white border-slate-200'}`}>
+                        <h2 className={`text-xs font-bold mb-4 uppercase tracking-wider flex items-center gap-2 ${isFaulty ? 'text-red-600' : 'text-slate-500'}`}>
+                            <Database className={`w-4 h-4 ${isFaulty ? 'text-red-600' : 'text-blue-500'}`} /> Extracted Health Indicators
                         </h2>
 
-                        <div className="space-y-3">
-                            <div className="flex justify-between items-center bg-white p-3.5 rounded-xl border border-slate-100 shadow-sm">
-                                <span className="text-sm text-slate-600 font-medium">Kurtosis (Impulses)</span>
-                                <span className={`font-mono text-lg font-bold ${sensorData.kurtosis > 4.0 ? 'text-red-600' : 'text-blue-600'}`}>
-                                    {sensorData.kurtosis.toFixed(2)}
-                                </span>
+                        <div className="space-y-4">
+                            {/* Kurtosis Progress Box */}
+                            <div className="bg-white p-4 rounded-xl border border-slate-100 shadow-sm relative overflow-hidden">
+                                {isFaulty && <div className="absolute top-0 left-0 w-1 h-full bg-red-500"></div>}
+                                <div className="flex justify-between items-center mb-2.5">
+                                    <span className="text-xs text-slate-600 font-bold uppercase tracking-wide">Kurtosis (Impulses)</span>
+                                    <span className={`font-mono text-lg font-bold ${sensorData.kurtosis > 4.0 ? 'text-red-600' : 'text-blue-600'}`}>
+                                        {sensorData.kurtosis.toFixed(2)}
+                                    </span>
+                                </div>
+                                <div className="w-full bg-slate-100 rounded-full h-1.5 overflow-hidden">
+                                    <div className={`h-full rounded-full transition-all duration-300 ${sensorData.kurtosis > 4.0 ? 'bg-red-500' : 'bg-blue-500'}`} style={{ width: `${Math.min(100, (sensorData.kurtosis / 7) * 100)}%` }}></div>
+                                </div>
                             </div>
-                            <div className="flex justify-between items-center bg-white p-3.5 rounded-xl border border-slate-100 shadow-sm">
-                                <span className="text-sm text-slate-600 font-medium">RMS (Total Energy)</span>
-                                <span className={`font-mono text-lg font-bold ${sensorData.rms > 2.5 ? 'text-red-600' : 'text-blue-600'}`}>
-                                    {sensorData.rms.toFixed(2)} g
-                                </span>
+                            
+                            {/* RMS Progress Box */}
+                            <div className="bg-white p-4 rounded-xl border border-slate-100 shadow-sm relative overflow-hidden">
+                                {isFaulty && <div className="absolute top-0 left-0 w-1 h-full bg-red-500"></div>}
+                                <div className="flex justify-between items-center mb-2.5">
+                                    <span className="text-xs text-slate-600 font-bold uppercase tracking-wide">RMS (Total Energy)</span>
+                                    <span className={`font-mono text-lg font-bold ${sensorData.rms > 2.5 ? 'text-red-600' : 'text-blue-600'}`}>
+                                        {sensorData.rms.toFixed(2)} g
+                                    </span>
+                                </div>
+                                <div className="w-full bg-slate-100 rounded-full h-1.5 overflow-hidden">
+                                    <div className={`h-full rounded-full transition-all duration-300 ${sensorData.rms > 2.5 ? 'bg-red-500' : 'bg-blue-500'}`} style={{ width: `${Math.min(100, (sensorData.rms / 4) * 100)}%` }}></div>
+                                </div>
                             </div>
                         </div>
 
@@ -289,11 +325,11 @@ export default function App() {
                         <div className={`mt-5 pt-5 border-t ${isFaulty ? 'border-red-200' : 'border-slate-100'}`}>
                             <h3 className="text-[10px] font-bold text-slate-400 mb-2 uppercase tracking-wider">Local Edge Decision</h3>
                             {isFaulty ? (
-                                <div className="bg-red-100/50 border border-red-200 p-3.5 rounded-xl flex items-start gap-3">
-                                    <AlertTriangle className="w-5 h-5 text-red-600 shrink-0 mt-0.5" />
+                                <div className="bg-red-100/80 border border-red-200 p-3.5 rounded-xl flex items-start gap-3">
+                                    <AlertTriangle className="w-5 h-5 text-red-600 shrink-0 mt-0.5 animate-pulse" />
                                     <div>
-                                        <p className="text-sm font-bold text-red-700">Anomaly Flag: TRUE</p>
-                                        <p className="text-xs text-red-600/80 mt-1 font-medium leading-tight">BPFO threshold exceeded. Bypassing standard telemetry schedule.</p>
+                                        <p className="text-sm font-bold text-red-800">Anomaly Flag: TRUE</p>
+                                        <p className="text-xs text-red-600/90 mt-1 font-medium leading-tight">BPFO threshold exceeded. Bypassing standard telemetry schedule.</p>
                                     </div>
                                 </div>
                             ) : (
@@ -309,21 +345,23 @@ export default function App() {
                     <div className="bg-white rounded-2xl border border-slate-200 shadow-sm p-5 flex flex-col">
                         <div className="flex justify-between items-start mb-4 border-b border-slate-100 pb-3">
                             <div>
-                                <h2 className="text-xs font-bold text-slate-500 uppercase tracking-wider flex items-center gap-2">
+                                <h2 className="text-xs font-bold text-slate-800 uppercase tracking-wider flex items-center gap-2">
                                     <Network className="w-4 h-4 text-indigo-500" /> Wirepas Mesh Network
                                 </h2>
-                                <p className="text-[10px] text-slate-400 mt-1">Multi-hop Self-Healing Topology</p>
+                                <p className="text-[10px] text-slate-400 mt-1 flex items-center gap-1">
+                                    Multi-hop Topology <Radio className="w-3 h-3 text-emerald-500 animate-pulse ml-1" />
+                                </p>
                             </div>
                             <button
                                 onClick={() => setMeshState(prev => prev === 'normal' ? 'blocked' : 'normal')}
-                                className={`text-[10px] font-bold px-2 py-1 rounded border transition-colors ${meshState === 'blocked' ? 'bg-amber-100 text-amber-700 border-amber-300' : 'bg-slate-100 text-slate-600 border-slate-200 hover:bg-slate-200'}`}
+                                className={`text-[10px] font-bold px-2 py-1 rounded-lg border transition-colors ${meshState === 'blocked' ? 'bg-amber-100 text-amber-700 border-amber-300' : 'bg-slate-50 text-slate-600 border-slate-200 hover:bg-slate-100'}`}
                             >
                                 {meshState === 'blocked' ? 'Clear Blockage' : 'Simulate RF Blockage'}
                             </button>
                         </div>
 
                         {/* Visual Mesh Topology */}
-                        <div className="relative h-28 bg-slate-50 rounded-xl border border-slate-100 mb-4 p-2">
+                        <div className="relative h-28 bg-slate-50/80 rounded-xl border border-slate-100 mb-4 p-2 shadow-inner">
                             <svg className="w-full h-full" viewBox="0 0 200 80">
                                 {/* Node A -> Gateway (Direct Path) */}
                                 <line x1="30" y1="40" x2="170" y2="40" stroke={meshState === 'normal' ? '#818cf8' : '#cbd5e1'} strokeWidth="2" strokeDasharray="4 2" className={meshState === 'normal' ? 'animate-[dash_1s_linear_infinite]' : ''} />
@@ -354,14 +392,19 @@ export default function App() {
                         </div>
 
                         {/* Payload Logs */}
-                        <div className="flex-1 flex flex-col gap-1.5">
+                        <div className="flex-1 flex flex-col gap-2">
                             {meshLogs.map((log, idx) => (
-                                <div key={log.id} className={`text-[10px] font-mono p-2 rounded-lg border transition-all ${idx === 0 ? 'opacity-100 shadow-sm' : 'opacity-50'} ${log.isAnomaly ? 'bg-red-50 border-red-200 text-red-700' : 'bg-slate-50 border-slate-200 text-slate-600'}`}>
-                                    <div className="flex justify-between mb-1 opacity-80 font-bold">
-                                        <span className={meshState === 'blocked' ? 'text-amber-600' : ''}>{log.path}</span>
-                                        <span>{log.time}</span>
+                                <div key={log.id} className={`text-[10px] font-mono p-2 rounded-xl border transition-all duration-300 ${idx === 0 ? 'opacity-100 shadow-sm translate-x-0' : 'opacity-50 translate-x-1'} ${log.isAnomaly ? 'bg-red-50 border-red-200 text-red-800' : 'bg-slate-50 border-slate-200 text-slate-600'}`}>
+                                    <div className="flex justify-between mb-1.5 font-bold">
+                                        <span className={meshState === 'blocked' ? 'text-amber-600 flex items-center gap-1' : 'flex items-center gap-1'}>
+                                            <Network className="w-3 h-3" /> {log.path}
+                                        </span>
+                                        <span className="flex items-center gap-2">
+                                            <span className={`${meshState === 'blocked' ? 'text-amber-600' : 'text-emerald-600'}`}>{log.latency}ms</span>
+                                            <span className="text-slate-400">{log.time}</span>
+                                        </span>
                                     </div>
-                                    <div className="bg-white/60 px-1.5 py-1 rounded border border-white/40">
+                                    <div className={`px-2 py-1.5 rounded-lg border ${log.isAnomaly ? 'bg-white border-red-100' : 'bg-white/80 border-slate-100'}`}>
                                         {`{kurt:${log.payload.kurt}, state:"${log.payload.state}"}`}
                                     </div>
                                 </div>
