@@ -119,10 +119,10 @@ export default function App() {
             {/* Top Navigation / Back Button */}
             <div className="max-w-7xl mx-auto mb-6">
                 <button 
-                    onClick={() => alert("This would route back to the L7 OmniDashboard (Home Portal)")}
+                    onClick={() => window.location.href = '/'}
                     className="flex items-center gap-2 text-xs font-black uppercase tracking-widest text-slate-500 hover:text-slate-900 transition-colors bg-white px-4 py-2 rounded-xl border border-slate-200 shadow-sm hover:shadow-md"
                 >
-                    <ArrowLeft className="w-4 h-4" /> Back to Dashboard
+                    <ArrowLeft className="w-4 h-4" /> Back to Home
                 </button>
             </div>
 
