@@ -1,561 +1,419 @@
-import React, { useState, useEffect, useRef } from 'react';
-import { Box, Cpu, Activity, ShieldAlert, CheckCircle, Database, Layers, Play, Server, Crosshair, Hexagon, Terminal, Gauge, Maximize, Zap } from 'lucide-react';
+import React, { useState, useEffect } from 'react';
+import { Activity, Cpu, AlertTriangle, CheckCircle, Zap, Thermometer, Database, Filter, Network, Server, ArrowLeft, Radio, Signal } from 'lucide-react';
 
-const AutomotiveDFMEdge = {
-  extractBRepGraph: async () => {
-    return new Promise((resolve) => {
-      setTimeout(() => {
-        resolve({
-          assemblyId: "VAR-HL-PRJ-LED-99A",
-          classification: "AUTOMOTIVE_HEADLAMP_PROJECTOR",
-          manifoldStatus: "WATER_TIGHT",
-          volume_cm3: 842.15,
-          surfaceArea_cm2: 3205.88,
-          nodes: Array.from({ length: 48 }, (_, i) => ({
-            faceId: `F-${8000 + i}`,
-            type: i % 4 === 0 ? 'NURBS_LENS_SURFACE' : (i % 3 === 0 ? 'CYLINDRICAL_BOSS' : 'HEAT_SINK_FIN'),
-            principalCurvature: [+(Math.random()).toFixed(4), +(Math.random()).toFixed(4)],
-            toolingDraftAngle: +(Math.random() * 2).toFixed(2),
-            thicknessAtBase: +(Math.random() * 5 + 1).toFixed(2)
-          })),
-          edges: Array.from({ length: 96 }, (_, i) => ({
-            edgeId: `E-${20000 + i}`,
-            source: `F-${8000 + Math.floor(Math.random() * 48)}`,
-            target: `F-${8000 + Math.floor(Math.random() * 48)}`,
-            continuity: Math.random() > 0.7 ? 'G1_TANGENT' : 'G0_POSITIONAL',
-            convexity: Math.random() > 0.5 ? 'CONVEX_FILLET' : 'CONCAVE_RADII'
-          }))
-        });
-      }, 1200);
+export default function App() {
+    const [isFaulty, setIsFaulty] = useState(false);
+    const [isFiltered, setIsFiltered] = useState(true);
+    const [meshState, setMeshState] = useState('normal'); // 'normal' | 'blocked'
+    const [tick, setTick] = useState(0);
+
+    // Simulated Edge Data State
+    const [sensorData, setSensorData] = useState({
+        kurtosis: 2.8,
+        rms: 1.2,
+        crestFactor: 3.1,
+        temperature: 45.2,
+        cpuLoad: 12
     });
-  },
 
-  executeDFA: async (graphData) => {
-    return new Promise((resolve) => {
-      setTimeout(() => {
-        resolve([
-          {
-            faceId: "VAR-BOSS-MNT-L",
-            ruleCode: "VAR-MOLD-PC-014",
-            description: "Insufficient Draft Angle on Primary Mounting Boss. High risk of ejection pin punch-through.",
-            expected: ">= 2.5° for PC/ABS",
-            actual: "0.8°",
-            severity: "CRITICAL"
-          },
-          {
-            faceId: "VAR-BOSS-MNT-R",
-            ruleCode: "VAR-MOLD-PC-014",
-            description: "Insufficient Draft Angle on Secondary Mounting Boss.",
-            expected: ">= 2.5° for PC/ABS",
-            actual: "0.9°",
-            severity: "CRITICAL"
-          },
-          {
-            faceId: "VAR-HS-FIN-ROOT",
-            ruleCode: "VAR-THERM-AL-09",
-            description: "Heat sink fin root thickness exceeds nominal core wall. Sink mark risk on reflector base.",
-            expected: "<= 2.20 mm",
-            actual: "4.15 mm",
-            severity: "CRITICAL"
-          }
-        ]);
-      }, 1600);
-    });
-  }
-};
+    const [waveformData, setWaveformData] = useState(Array(50).fill(25));
+    const [fftData, setFftData] = useState(Array(20).fill(2));
+    const [meshLogs, setMeshLogs] = useState([]);
 
-export default function AegisCADAutomotiveNexus() {
-  const [engineState, setEngineState] = useState('STANDBY');
-  const [telemetry, setTelemetry] = useState([]);
-  const [topologyData, setTopologyData] = useState(null);
-  const [dfmResults, setDfmResults] = useState(null);
-  const [viewMode, setViewMode] = useState('SOLID');
-  
-  const mountRef = useRef(null);
-  const containerRef = useRef(null);
-  const threeState = useRef({
-    scene: null, camera: null, renderer: null, controls: null,
-    animationId: null, isMounted: true, meshes: {}
-  });
-  const terminalRef = useRef(null);
+    // Main simulation loop
+    useEffect(() => {
+        const interval = setInterval(() => {
+            setTick(t => t + 1);
 
-  const logEngine = (msg, type = 'SYS') => {
-    setTelemetry(prev => [...prev, {
-      ts: new Date().toISOString().substring(11, 23),
-      msg,
-      type
-    }]);
-  };
+            // 1. Simulate Raw Waveform (Time Domain)
+            let newValue;
+            // High noise if unfiltered, low noise if band-pass filter is on
+            const noiseLevel = isFiltered ? (Math.random() * 4 - 2) : (Math.random() * 16 - 8);
 
-  useEffect(() => {
-    if (terminalRef.current) {
-      terminalRef.current.scrollTop = terminalRef.current.scrollHeight;
-    }
-  }, [telemetry]);
+            if (!isFaulty) {
+                // Healthy: Sine wave + noise
+                newValue = 25 + Math.sin(tick * 0.5) * 8 + noiseLevel;
+            } else {
+                // Faulty: Sine wave + noise + severe high-frequency impacts (BPFO)
+                const impact = (tick % 6 === 0) ? 22 : 0;
+                newValue = 25 + Math.sin(tick * 0.5) * 8 + noiseLevel + impact;
+            }
 
-  useEffect(() => {
-    threeState.current.isMounted = true;
+            setWaveformData(prev => {
+                const next = [...prev, newValue];
+                return next.slice(-50); // Keep last 50 points
+            });
 
-    const loadScript = (src) => {
-      return new Promise((resolve, reject) => {
-        if (document.querySelector(`script[src="${src}"]`)) {
-          resolve();
-          return;
-        }
-        const script = document.createElement('script');
-        script.src = src;
-        script.onload = resolve;
-        script.onerror = reject;
-        document.head.appendChild(script);
-      });
+            // 2. Simulate FFT, Features & CPU Load
+            if (!isFaulty) {
+                setSensorData({
+                    kurtosis: 2.8 + (Math.random() * 0.4),
+                    rms: 1.2 + (Math.random() * 0.1),
+                    crestFactor: 3.1 + (Math.random() * 0.2),
+                    temperature: 45.0 + (Math.random() * 1.5),
+                    cpuLoad: isFiltered ? 18 + Math.random() * 4 : 12 + Math.random() * 2
+                });
+
+                setFftData(prev => prev.map((v, i) => i < 5 ? 10 + Math.random() * 5 : 2 + Math.random() * 2));
+            } else {
+                setSensorData(prev => ({
+                    kurtosis: Math.min(6.5, prev.kurtosis + 0.5 + Math.random()),
+                    rms: Math.min(3.5, prev.rms + 0.2),
+                    crestFactor: Math.min(7.0, prev.crestFactor + 0.4),
+                    temperature: Math.min(68.0, prev.temperature + 1.2),
+                    cpuLoad: 35 + Math.random() * 10 // CPU spikes when processing anomalies
+                }));
+
+                setFftData(prev => prev.map((v, i) => {
+                    if (i === 12) return 45 + Math.random() * 10; // The BPFO Spike!
+                    if (i < 5) return 15 + Math.random() * 5;
+                    return 5 + Math.random() * 5;
+                }));
+            }
+
+        }, 150);
+
+        return () => clearInterval(interval);
+    }, [isFaulty, tick, isFiltered]);
+
+    // Simulate Mesh Gateway Transmission every 2 seconds
+    useEffect(() => {
+        const txInterval = setInterval(() => {
+            const isAnomaly = sensorData.kurtosis > 4.0 || sensorData.temperature > 55.0;
+            const path = meshState === 'normal' ? 'Node_A ➔ Gateway' : 'Node_A ➔ Node_C ➔ Gateway';
+
+            const newLog = {
+                id: Math.random().toString(36).substring(7),
+                time: new Date().toLocaleTimeString(),
+                isAnomaly,
+                path,
+                latency: Math.floor(12 + Math.random() * 15) + (meshState === 'blocked' ? 45 : 0),
+                payload: {
+                    kurt: sensorData.kurtosis.toFixed(2),
+                    state: isAnomaly ? "DEFECT" : "CLEAR"
+                }
+            };
+
+            setMeshLogs(prev => [newLog, ...prev].slice(0, 3));
+        }, 2000);
+
+        return () => clearInterval(txInterval);
+    }, [sensorData, meshState]);
+
+    // SVG Path generator for waveform
+    const generatePath = () => {
+        const width = 500;
+        const height = 100;
+        const step = width / (waveformData.length - 1);
+
+        return waveformData.reduce((path, val, idx) => {
+            const x = idx * step;
+            const y = Math.max(0, Math.min(height, height - (val / 50 * height)));
+            return `${path} ${idx === 0 ? 'M' : 'L'} ${x},${y}`;
+        }, "");
     };
 
-    const initializeEnvironment = async () => {
-      try {
-        await loadScript('https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js');
-        await loadScript('https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/controls/OrbitControls.js');
-        
-        if (threeState.current.isMounted) {
-          buildAutomotiveScene();
-          logEngine('WebGL2 Render Engine & OrbitControls Initialized', 'OK');
-          logEngine('Awaiting OpenCASCADE B-Rep Intercept...', 'SYS');
-        }
-      } catch (error) {
-        if (threeState.current.isMounted) {
-          logEngine('Critical failure loading render dependencies', 'ERR');
-        }
-      }
-    };
-
-    initializeEnvironment();
-
-    return () => {
-      threeState.current.isMounted = false;
-      if (threeState.current.animationId) {
-        cancelAnimationFrame(threeState.current.animationId);
-      }
-      if (threeState.current.renderer && mountRef.current) {
-        if (mountRef.current.contains(threeState.current.renderer.domElement)) {
-          mountRef.current.removeChild(threeState.current.renderer.domElement);
-        }
-        threeState.current.renderer.dispose();
-      }
-    };
-  }, []);
-
-  const buildAutomotiveScene = () => {
-    if (!window.THREE || !mountRef.current || !containerRef.current) return;
-
-    const width = containerRef.current.clientWidth;
-    const height = containerRef.current.clientHeight;
-
-    const scene = new window.THREE.Scene();
-    scene.background = new window.THREE.Color(0x0f172a);
-    scene.fog = new window.THREE.Fog(0x0f172a, 15, 60);
-
-    const camera = new window.THREE.PerspectiveCamera(45, width / height, 0.1, 1000);
-    camera.position.set(12, 8, 14);
-
-    const renderer = new window.THREE.WebGLRenderer({ antialias: true, alpha: false, powerPreference: "high-performance" });
-    renderer.setSize(width, height);
-    renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
-    renderer.shadowMap.enabled = true;
-    renderer.shadowMap.type = window.THREE.PCFSoftShadowMap;
-
-    mountRef.current.innerHTML = '';
-    mountRef.current.appendChild(renderer.domElement);
-
-    const controls = new window.THREE.OrbitControls(camera, renderer.domElement);
-    controls.enableDamping = true;
-    controls.dampingFactor = 0.05;
-    controls.target.set(0, 0, 0);
-
-    const grid = new window.THREE.GridHelper(40, 40, 0x334155, 0x1e293b);
-    grid.position.y = -4;
-    scene.add(grid);
-
-    const ambientLight = new window.THREE.AmbientLight(0xffffff, 0.5);
-    scene.add(ambientLight);
-
-    const mainLight = new window.THREE.DirectionalLight(0xffffff, 1.2);
-    mainLight.position.set(15, 20, 10);
-    mainLight.castShadow = true;
-    mainLight.shadow.mapSize.width = 2048;
-    mainLight.shadow.mapSize.height = 2048;
-    scene.add(mainLight);
-
-    const backLight = new window.THREE.PointLight(0x047857, 2, 50);
-    backLight.position.set(-10, 5, -15);
-    scene.add(backLight);
-
-    const assemblyGroup = new window.THREE.Group();
-
-    const housingMat = new window.THREE.MeshPhysicalMaterial({
-      color: 0x1e293b, metalness: 0.2, roughness: 0.6, clearcoat: 0.1
-    });
-    
-    const lensMat = new window.THREE.MeshPhysicalMaterial({
-      color: 0xbae6fd, transmission: 0.95, opacity: 1, transparent: true, roughness: 0.05, ior: 1.5, thickness: 0.5
-    });
-
-    const heatSinkMat = new window.THREE.MeshStandardMaterial({
-      color: 0x64748b, metalness: 0.8, roughness: 0.3
-    });
-
-    const defectMat = new window.THREE.MeshStandardMaterial({
-      color: 0x1e293b, metalness: 0.2, roughness: 0.6
-    });
-
-    const housingGeo = new window.THREE.SphereGeometry(3.5, 64, 32, 0, Math.PI * 2, 0, Math.PI / 1.8);
-    housingGeo.scale(1, 0.85, 1.2);
-    const housing = new window.THREE.Mesh(housingGeo, housingMat);
-    housing.rotation.x = Math.PI;
-    housing.castShadow = true;
-    housing.receiveShadow = true;
-    assemblyGroup.add(housing);
-
-    const lensGeo = new window.THREE.SphereGeometry(2.8, 64, 32, 0, Math.PI * 2, 0, Math.PI / 2.2);
-    lensGeo.scale(1, 1, 0.6);
-    const lens = new window.THREE.Mesh(lensGeo, lensMat);
-    lens.position.set(0, 0, 3.8);
-    lens.rotation.x = Math.PI / 2;
-    assemblyGroup.add(lens);
-
-    const bezelGeo = new window.THREE.TorusGeometry(2.8, 0.2, 32, 100);
-    const bezel = new window.THREE.Mesh(bezelGeo, heatSinkMat);
-    bezel.position.set(0, 0, 3.8);
-    assemblyGroup.add(bezel);
-
-    const heatSinkCoreGeo = new window.THREE.CylinderGeometry(1.8, 1.8, 3, 32);
-    const heatSinkCore = new window.THREE.Mesh(heatSinkCoreGeo, heatSinkMat);
-    heatSinkCore.position.set(0, 0, -2.5);
-    heatSinkCore.rotation.x = Math.PI / 2;
-    assemblyGroup.add(heatSinkCore);
-
-    const fins = [];
-    for (let i = 0; i < 7; i++) {
-      const finGeo = new window.THREE.CylinderGeometry(2.2, 2.2, 0.15, 32);
-      const fin = new window.THREE.Mesh(finGeo, defectMat.clone());
-      fin.position.set(0, 0, -1.5 - (i * 0.35));
-      fin.rotation.x = Math.PI / 2;
-      fin.castShadow = true;
-      assemblyGroup.add(fin);
-      fins.push(fin);
-    }
-
-    const bossGeo = new window.THREE.CylinderGeometry(0.4, 0.4, 2, 32);
-    
-    const leftBoss = new window.THREE.Mesh(bossGeo, defectMat.clone());
-    leftBoss.position.set(3.2, 0, 0);
-    leftBoss.rotation.z = Math.PI / 2;
-    leftBoss.castShadow = true;
-    assemblyGroup.add(leftBoss);
-
-    const rightBoss = new window.THREE.Mesh(bossGeo, defectMat.clone());
-    rightBoss.position.set(-3.2, 0, 0);
-    rightBoss.rotation.z = -Math.PI / 2;
-    rightBoss.castShadow = true;
-    assemblyGroup.add(rightBoss);
-
-    scene.add(assemblyGroup);
-
-    threeState.current = {
-      ...threeState.current,
-      scene, camera, renderer, controls,
-      meshes: { assemblyGroup, housing, lens, fins, leftBoss, rightBoss }
-    };
-
-    const resizeObserver = new ResizeObserver(entries => {
-      if (!threeState.current.isMounted || !threeState.current.renderer || !threeState.current.camera) return;
-      for (let entry of entries) {
-        const { width, height } = entry.contentRect;
-        threeState.current.renderer.setSize(width, height);
-        threeState.current.camera.aspect = width / height;
-        threeState.current.camera.updateProjectionMatrix();
-      }
-    });
-    
-    resizeObserver.observe(containerRef.current);
-
-    const animate = () => {
-      if (!threeState.current.isMounted) return;
-      threeState.current.animationId = requestAnimationFrame(animate);
-      
-      if (threeState.current.controls) threeState.current.controls.update();
-      if (engineState === 'STANDBY' && threeState.current.meshes.assemblyGroup) {
-        threeState.current.meshes.assemblyGroup.rotation.y += 0.003;
-        threeState.current.meshes.assemblyGroup.rotation.z = Math.sin(Date.now() * 0.001) * 0.1;
-      }
-      
-      if (threeState.current.renderer && threeState.current.scene && threeState.current.camera) {
-        threeState.current.renderer.render(threeState.current.scene, threeState.current.camera);
-      }
-    };
-
-    animate();
-
-    return () => resizeObserver.disconnect();
-  };
-
-  const toggleViewMode = () => {
-    if (!threeState.current.meshes.assemblyGroup) return;
-    const newMode = viewMode === 'SOLID' ? 'XRAY' : 'SOLID';
-    setViewMode(newMode);
-    
-    const isWire = newMode === 'XRAY';
-    
-    threeState.current.scene.traverse((child) => {
-      if (child.isMesh && child !== threeState.current.meshes.lens) {
-        child.material.wireframe = isWire;
-        if(isWire) {
-           child.material.transparent = true;
-           child.material.opacity = 0.3;
-        } else {
-           child.material.transparent = false;
-           child.material.opacity = 1;
-        }
-      }
-    });
-  };
-
-  const executeExtractionPhase = async () => {
-    setEngineState('SCANNING');
-    setTopologyData(null);
-    setDfmResults(null);
-    logEngine('Initiating OCCT 8.0 B-Rep Topological Extraction...', 'EXE');
-    
-    try {
-      const data = await AutomotiveDFMEdge.extractBRepGraph();
-      setTopologyData(data);
-      setEngineState('TENSOR_MAPPING');
-      logEngine(`B-Rep Graph Serialized. Nodes: ${data.nodes.length} | Edges: ${data.edges.length}`, 'OK');
-      logEngine(`Manifold Class: ${data.classification} mapped successfully.`, 'OK');
-    } catch (e) {
-      setEngineState('FAIL');
-      logEngine('OCCT Extraction Fault', 'ERR');
-    }
-  };
-
-  const executeNeuralValidation = async () => {
-    setEngineState('DFA_EVALUATION');
-    logEngine('Multiplexing Face Adjacency Graph via gRPC to Agentic Core...', 'EXE');
-    logEngine('Locking LLM Temperature to 0.0. Applying Varroc APQP Constraints...', 'SYS');
-    
-    try {
-      const results = await AutomotiveDFMEdge.executeDFA(topologyData);
-      setDfmResults(results);
-      setEngineState('RESULTS_READY');
-      logEngine('DFA Verifier Yielded Deterministic Output.', 'OK');
-      
-      if (threeState.current.meshes.leftBoss) {
-        const alertColor = new window.THREE.Color(0xdc2626);
-        threeState.current.meshes.leftBoss.material.color = alertColor;
-        threeState.current.meshes.rightBoss.material.color = alertColor;
-        threeState.current.meshes.fins.forEach(f => f.material.color = alertColor);
-      }
-      logEngine('Viewport Overlay: Critical Tooling Violations Highlighted', 'ERR');
-    } catch (e) {
-      setEngineState('FAIL');
-      logEngine('RPC Stream Terminated Unexpectedly', 'ERR');
-    }
-  };
-
-  return (
-    <div className="min-h-screen bg-white text-black font-sans flex flex-col selection:bg-green-200">
-      <header className="bg-[#047857] text-white py-3 px-6 flex items-center justify-between border-b-4 border-[#065f46] shadow-md z-20">
-        <div className="flex items-center space-x-4">
-          <Hexagon size={32} className="text-white fill-current opacity-90" />
-          <div>
-            <h1 className="text-2xl font-extrabold tracking-tighter leading-none">AEGISCAD<span className="font-light">NEXUS</span></h1>
-            <p className="text-[10px] font-mono tracking-[0.2em] text-green-200 uppercase">Enterprise Automotive DFM Core</p>
-          </div>
-        </div>
-        <div className="flex items-center space-x-6 bg-black/20 px-4 py-2 rounded-lg border border-white/10">
-          <div className="flex items-center space-x-2">
-            <Server size={14} className="text-green-300" />
-            <span className="text-xs font-mono font-bold tracking-widest text-green-100">gRPC: {['SCANNING', 'DFA_EVALUATION'].includes(engineState) ? 'STREAMING' : 'IDLE'}</span>
-          </div>
-          <div className="w-px h-4 bg-white/20"></div>
-          <div className="flex items-center space-x-2">
-            <Zap size={14} className={engineState === 'DFA_EVALUATION' ? 'text-red-400 animate-pulse' : 'text-green-300'} />
-            <span className="text-xs font-mono font-bold tracking-widest text-green-100">LATENCY: {engineState === 'DFA_EVALUATION' ? '38ms' : '0ms'}</span>
-          </div>
-        </div>
-      </header>
-
-      <main className="flex-1 grid grid-cols-12 gap-0 overflow-hidden h-[calc(100vh-76px)]">
-        
-        <div className="col-span-3 bg-white border-r-2 border-gray-200 flex flex-col z-10 shadow-xl">
-          <div className="p-6 flex-1 flex flex-col">
-            <div className="mb-6">
-              <h2 className="text-sm font-extrabold text-black mb-1 uppercase tracking-widest flex items-center">
-                <Cpu size={16} className="mr-2 text-[#047857]" /> Pipeline Control
-              </h2>
-              <p className="text-xs text-gray-500 mb-4">Execute sub-100ms deterministic extraction.</p>
-              
-              <div className="space-y-3">
+    return (
+        <div className={`min-h-screen text-slate-800 font-sans p-4 md:p-6 lg:p-8 transition-colors duration-700 ${isFaulty ? 'bg-red-50/40 selection:bg-red-200' : 'bg-slate-50 selection:bg-blue-100'}`}>
+            
+            {/* Top Navigation / Back Button */}
+            <div className="max-w-7xl mx-auto mb-6">
                 <button 
-                  onClick={executeExtractionPhase}
-                  disabled={['SCANNING', 'DFA_EVALUATION'].includes(engineState)}
-                  className="w-full relative group overflow-hidden bg-[#047857] hover:bg-[#065f46] disabled:bg-gray-300 text-white font-bold py-3.5 px-4 rounded shadow-md transition-all duration-200 flex items-center justify-between"
+                    onClick={() => window.location.href = '/'}
+                    className="flex items-center gap-2 text-xs font-black uppercase tracking-widest text-slate-500 hover:text-slate-900 transition-colors bg-white px-4 py-2 rounded-xl border border-slate-200 shadow-sm hover:shadow-md"
                 >
-                  <div className="flex items-center">
-                    <Layers size={18} className="mr-3" />
-                    <span className="tracking-wide text-sm">1. Extract B-Rep Graph</span>
-                  </div>
-                  {engineState === 'SCANNING' && <Activity size={18} className="animate-spin" />}
+                    <ArrowLeft className="w-4 h-4" /> Back to Home
                 </button>
-
-                <button 
-                  onClick={executeNeuralValidation}
-                  disabled={engineState !== 'TENSOR_MAPPING'}
-                  className="w-full relative bg-black hover:bg-gray-800 disabled:bg-gray-200 disabled:text-gray-400 text-white font-bold py-3.5 px-4 rounded shadow-md transition-all duration-200 flex items-center justify-between"
-                >
-                  <div className="flex items-center">
-                    <Play size={18} className="mr-3 text-green-400 group-disabled:text-gray-400" />
-                    <span className="tracking-wide text-sm">2. Neural DFA Logic</span>
-                  </div>
-                  {engineState === 'DFA_EVALUATION' && <Gauge size={18} className="animate-pulse text-red-500" />}
-                </button>
-              </div>
             </div>
 
-            <div className="bg-gray-50 rounded-lg p-4 border border-gray-200 mb-6 flex-1 flex flex-col">
-              <h3 className="text-[10px] font-extrabold text-gray-400 mb-3 uppercase tracking-widest border-b border-gray-200 pb-2 shrink-0">Topological Data Matrix</h3>
-              <div className="flex-1 overflow-y-auto">
-                {topologyData ? (
-                  <div className="space-y-2 text-xs font-mono">
-                    <div className="flex justify-between"><span className="text-gray-500">ID:</span><span className="font-bold text-black">{topologyData.assemblyId}</span></div>
-                    <div className="flex justify-between"><span className="text-gray-500">CLASS:</span><span className="font-bold text-[#047857] text-right ml-2">{topologyData.classification}</span></div>
-                    <div className="flex justify-between"><span className="text-gray-500">VOL:</span><span className="font-bold text-black">{topologyData.volume_cm3} cm³</span></div>
-                    <div className="flex justify-between"><span className="text-gray-500">NODES:</span><span className="font-bold text-black">{topologyData.nodes.length} Tensors</span></div>
-                    <div className="flex justify-between"><span className="text-gray-500">EDGES:</span><span className="font-bold text-black">{topologyData.edges.length} Matrices</span></div>
-                  </div>
-                ) : (
-                  <div className="h-full flex items-center justify-center text-gray-400 italic text-xs">
-                    Awaiting manifold extraction...
-                  </div>
-                )}
-              </div>
-            </div>
-          </div>
-
-          <div className="h-64 bg-[#09090b] flex flex-col border-t border-gray-800">
-            <div className="px-4 py-2 border-b border-gray-800 flex justify-between items-center bg-black">
-              <h2 className="text-[10px] font-bold text-green-500 uppercase tracking-widest flex items-center">
-                <Terminal size={12} className="mr-2" /> Edge Gateway Stream
-              </h2>
-            </div>
-            <div ref={terminalRef} className="flex-1 overflow-y-auto p-4 font-mono text-[10px] space-y-1.5 leading-relaxed">
-              {telemetry.map((log, idx) => (
-                <div key={idx} className="flex">
-                  <span className="text-gray-600 mr-3 shrink-0">[{log.ts}]</span>
-                  <span className={
-                    log.type === 'ERR' ? 'text-red-500 font-bold' : 
-                    log.type === 'OK' ? 'text-green-400 font-bold' : 
-                    log.type === 'EXE' ? 'text-blue-400' : 'text-gray-300'
-                  }>
-                    {log.type === 'EXE' ? '> ' : ''}{log.msg}
-                  </span>
+            {/* Header Bar */}
+            <div className="max-w-7xl mx-auto flex flex-col lg:flex-row justify-between items-start lg:items-center mb-6 pb-6 border-b border-slate-200 gap-4 relative z-10">
+                <div className="flex items-center gap-4">
+                    <div className={`p-3 rounded-xl shadow-lg transition-colors duration-500 ${isFaulty ? 'bg-red-600 shadow-red-600/30' : 'bg-blue-600 shadow-blue-600/20'}`}>
+                        <Cpu className="w-8 h-8 text-white" />
+                    </div>
+                    <div>
+                        <h1 className="text-2xl font-extrabold text-slate-900 tracking-tight flex items-center gap-2">
+                            Layer 1: Edge Intelligence
+                            {isFaulty && <span className="bg-red-100 text-red-700 text-[10px] px-2 py-0.5 rounded-full border border-red-200 animate-pulse ml-2">FAULT DETECTED</span>}
+                        </h1>
+                        <p className="text-sm text-slate-500 font-medium">Hybrid Piezo/MEMS + Embedded ARM Cortex Processor</p>
+                    </div>
                 </div>
-              ))}
-            </div>
-          </div>
-        </div>
 
-        <div className="col-span-6 relative flex flex-col bg-[#0f172a] overflow-hidden">
-          <div className="absolute top-4 left-4 z-10 flex space-x-2">
-            <div className="bg-white/90 backdrop-blur px-3 py-1.5 text-xs font-bold border border-gray-300 rounded shadow flex items-center text-black">
-              <Crosshair size={14} className="mr-2 text-[#047857]" />
-              VARROC NX VIEWPORT
-            </div>
-            <button 
-              onClick={toggleViewMode}
-              className="bg-white/90 backdrop-blur hover:bg-gray-50 px-3 py-1.5 text-xs font-bold border border-gray-300 rounded shadow flex items-center text-black transition"
-            >
-              <Maximize size={14} className="mr-2 text-gray-600" />
-              {viewMode === 'SOLID' ? 'WIRE X-RAY' : 'SOLID MESH'}
-            </button>
-          </div>
+                <div className="flex flex-wrap items-center gap-3 bg-white p-2.5 rounded-xl border border-slate-200 shadow-sm w-full lg:w-auto">
+                    <span className="text-sm font-bold text-slate-500 pl-2 hidden sm:block">Controls:</span>
 
-          <div className="absolute top-4 right-4 z-10">
-             <div className="bg-black/80 backdrop-blur px-3 py-2 border border-gray-700 rounded shadow text-right">
-                <p className="text-[9px] text-gray-400 uppercase tracking-widest font-mono mb-1">State Config</p>
-                <div className="flex items-center justify-end space-x-2">
-                  <div className={`w-2 h-2 rounded-full ${engineState === 'STANDBY' ? 'bg-gray-500' : engineState === 'RESULTS_READY' ? 'bg-red-500' : 'bg-green-500 animate-pulse'}`}></div>
-                  <p className="text-xs font-bold text-white uppercase tracking-wide">{engineState.replace('_', ' ')}</p>
+                    <div className="flex items-center bg-slate-50 rounded-lg p-1 border border-slate-100">
+                        <button
+                            onClick={() => setIsFiltered(!isFiltered)}
+                            className={`px-3 py-1.5 rounded-md font-bold text-xs transition-all flex items-center gap-1.5 ${isFiltered ? 'bg-white text-blue-700 shadow-sm border border-slate-200/50' : 'text-slate-400 hover:text-slate-600'}`}
+                        >
+                            <Filter className="w-3.5 h-3.5" /> Band-Pass Filter
+                        </button>
+                    </div>
+
+                    <div className="flex items-center bg-slate-50 rounded-lg p-1 border border-slate-100">
+                        <button
+                            onClick={() => setIsFaulty(false)}
+                            className={`px-4 py-1.5 rounded-md font-bold text-xs transition-all ${!isFaulty ? 'bg-white text-emerald-600 shadow-sm border border-slate-200/50' : 'text-slate-400 hover:text-slate-600'}`}
+                        >
+                            Healthy
+                        </button>
+                        <button
+                            onClick={() => setIsFaulty(true)}
+                            className={`px-4 py-1.5 rounded-md font-bold text-xs transition-all flex items-center gap-1.5 ${isFaulty ? 'bg-red-50 text-red-600 shadow-sm border border-red-100' : 'text-slate-400 hover:text-slate-600'}`}
+                        >
+                            <Zap className="w-3.5 h-3.5" /> Inject Defect
+                        </button>
+                    </div>
                 </div>
-             </div>
-          </div>
-
-          <div ref={containerRef} className="relative w-full h-full flex-1 min-h-0">
-             <div ref={mountRef} className="absolute inset-0 outline-none cursor-move" />
-          </div>
-
-          {dfmResults && (
-            <div className="absolute bottom-6 left-1/2 transform -translate-x-1/2 w-11/12 max-w-2xl bg-red-600 text-white rounded-lg shadow-2xl border-2 border-red-400 overflow-hidden flex animate-in slide-in-from-bottom-8 duration-300 z-20">
-              <div className="bg-red-800 p-4 flex items-center justify-center border-r border-red-500">
-                <ShieldAlert size={32} className="animate-pulse" />
-              </div>
-              <div className="p-4 flex-1">
-                <h3 className="font-extrabold text-sm uppercase tracking-wider mb-1">Critical Design Constraints Violated</h3>
-                <p className="text-xs text-red-100">The current manifold topology fails Varroc PPAP specifications. Automatic red overlays generated on intersecting geometries.</p>
-              </div>
             </div>
-          )}
+
+            <div className="max-w-7xl mx-auto grid grid-cols-1 lg:grid-cols-3 gap-6 relative z-10">
+
+                {/* LEFT COLUMN: Sensor Data & Signal Processing */}
+                <div className="lg:col-span-2 space-y-6">
+
+                    {/* Waveform Panel */}
+                    <div className={`bg-white rounded-2xl border shadow-sm overflow-hidden relative transition-colors duration-500 ${isFaulty ? 'border-red-300 shadow-red-900/5' : 'border-slate-200'}`}>
+                        <div className={`absolute top-0 left-0 w-full h-1.5 transition-colors duration-500 ${isFaulty ? 'bg-red-500' : 'bg-blue-600'}`}></div>
+                        <div className={`p-5 flex justify-between items-center border-b transition-colors duration-500 ${isFaulty ? 'border-red-100 bg-red-50/50' : 'border-slate-100 bg-slate-50/50'}`}>
+                            <div>
+                                <h2 className="text-lg font-bold text-slate-800 flex items-center gap-2">
+                                    <Activity className={`w-5 h-5 ${isFaulty ? 'text-red-500 animate-pulse' : 'text-blue-600'}`} /> Raw Vibration Signal
+                                </h2>
+                                <p className="text-xs text-slate-500 font-medium mt-0.5 flex items-center gap-1">
+                                    <Signal className="w-3 h-3" /> Time-domain waveform (10kHz Sampling)
+                                </p>
+                            </div>
+                            <div className="text-right">
+                                <span className={`text-[10px] font-black tracking-widest px-2.5 py-1.5 rounded-full border ${isFiltered ? 'bg-blue-50 text-blue-700 border-blue-200' : 'bg-slate-100 text-slate-500 border-slate-200'}`}>
+                                    {isFiltered ? 'FILTER ACTIVE' : 'NOISY SIGNAL'}
+                                </span>
+                            </div>
+                        </div>
+
+                        <div className="p-6 relative h-60 bg-white flex items-center justify-center">
+                            <div className="absolute inset-0" style={{ backgroundImage: 'linear-gradient(rgba(0,0,0,0.03) 1px, transparent 1px), linear-gradient(90deg, rgba(0,0,0,0.03) 1px, transparent 1px)', backgroundSize: '20px 20px' }}></div>
+
+                            <svg viewBox="0 0 500 100" className="w-full h-full overflow-visible z-10">
+                                <path
+                                    d={generatePath()}
+                                    fill="none"
+                                    stroke={isFaulty ? "#ef4444" : "#2563eb"}
+                                    strokeWidth={isFiltered ? "2.5" : "1.5"}
+                                    strokeLinecap="round"
+                                    strokeLinejoin="round"
+                                    className="transition-colors duration-300"
+                                    style={{ filter: isFaulty ? 'drop-shadow(0px 2px 5px rgba(239,68,68,0.4))' : 'drop-shadow(0px 2px 4px rgba(37,99,235,0.2))' }}
+                                />
+                            </svg>
+
+                            {isFaulty && isFiltered && (
+                                <div className="absolute top-4 right-4 bg-red-50 border border-red-200 text-red-700 px-3 py-1.5 rounded-lg text-xs font-bold shadow-sm animate-pulse flex items-center gap-1.5 z-20">
+                                    <AlertTriangle className="w-4 h-4" /> BPFO IMPACTS ISOLATED
+                                </div>
+                            )}
+                        </div>
+                    </div>
+
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                        {/* FFT Frequency Spectrum */}
+                        <div className="bg-white rounded-2xl border border-slate-200 shadow-sm p-5 relative">
+                            <h2 className="text-xs font-bold text-slate-500 mb-1 uppercase tracking-wider flex items-center gap-2">
+                                Embedded FFT Processor
+                            </h2>
+                            <p className="text-[10px] text-slate-400 mb-4">Translating time-domain to frequency spectrum.</p>
+
+                            <div className="h-32 flex items-end justify-between gap-1.5 mt-2 bg-slate-50 p-2 rounded-xl border border-slate-100">
+                                {fftData.map((val, i) => (
+                                    <div key={i} className="w-full h-full flex items-end group relative">
+                                        <div
+                                            className={`w-full rounded-t-sm transition-all duration-75 ${i === 12 && isFaulty ? 'bg-red-500 shadow-[0_0_8px_rgba(239,68,68,0.4)]' : 'bg-blue-400 group-hover:bg-blue-500'}`}
+                                            style={{ height: `${val}%` }}
+                                        ></div>
+                                        {i === 12 && isFaulty && (
+                                            <span 
+                                                className="absolute left-1/2 -translate-x-1/2 mb-1 text-[10px] font-bold text-red-600 bg-red-50 px-1 rounded border border-red-100 z-10"
+                                                style={{ bottom: `${val}%` }}
+                                            >
+                                                BPFO
+                                            </span>
+                                        )}
+                                    </div>
+                                ))}
+                            </div>
+                            <div className="flex justify-between text-[10px] text-slate-400 mt-2 font-bold px-1">
+                                <span>0 Hz</span>
+                                <span>Defect Frequencies</span>
+                                <span>500 Hz</span>
+                            </div>
+                        </div>
+
+                        {/* ARM Cortex Edge Compute Load */}
+                        <div className="bg-white rounded-2xl border border-slate-200 shadow-sm p-5 flex flex-col justify-between">
+                            <div>
+                                <h2 className="text-xs font-bold text-slate-500 mb-1 uppercase tracking-wider flex items-center gap-2">
+                                    <Server className="w-4 h-4" /> Edge Compute Metrics
+                                </h2>
+                                <p className="text-[10px] text-slate-400 mb-4">Processing power retained at the factory level.</p>
+                            </div>
+
+                            <div className="space-y-5">
+                                <div className="bg-slate-50 p-4 rounded-xl border border-slate-100">
+                                    <div className="flex justify-between text-sm mb-2.5">
+                                        <span className="text-slate-600 font-medium">ARM CPU Load</span>
+                                        <span className={`font-mono font-bold ${sensorData.cpuLoad > 30 ? 'text-orange-500' : 'text-blue-600'}`}>
+                                            {sensorData.cpuLoad.toFixed(1)} %
+                                        </span>
+                                    </div>
+                                    <div className="w-full bg-slate-200 rounded-full h-2.5 overflow-hidden">
+                                        <div className={`h-full rounded-full transition-all duration-300 ${sensorData.cpuLoad > 30 ? 'bg-orange-500' : 'bg-blue-500'}`} style={{ width: `${sensorData.cpuLoad}%` }}></div>
+                                    </div>
+                                </div>
+
+                                <div className="flex justify-between items-center pt-1 px-1">
+                                    <span className="text-sm text-slate-600 font-medium flex items-center gap-1.5"><Thermometer className="w-4 h-4 text-slate-400" /> Ambient Temp</span>
+                                    <span className={`text-sm font-bold ${isFaulty ? 'text-red-600' : 'text-slate-600'}`}>{sensorData.temperature.toFixed(1)}°C</span>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                {/* RIGHT COLUMN: Feature Extraction & Mesh */}
+                <div className="space-y-6">
+
+                    {/* Edge AI Analytics Box */}
+                    <div className={`rounded-2xl border shadow-sm p-5 transition-all duration-500 ${isFaulty ? 'bg-red-50 border-red-300' : 'bg-white border-slate-200'}`}>
+                        <h2 className={`text-xs font-bold mb-4 uppercase tracking-wider flex items-center gap-2 ${isFaulty ? 'text-red-600' : 'text-slate-500'}`}>
+                            <Database className={`w-4 h-4 ${isFaulty ? 'text-red-600' : 'text-blue-500'}`} /> Extracted Health Indicators
+                        </h2>
+
+                        <div className="space-y-4">
+                            {/* Kurtosis Progress Box */}
+                            <div className="bg-white p-4 rounded-xl border border-slate-100 shadow-sm relative overflow-hidden">
+                                {isFaulty && <div className="absolute top-0 left-0 w-1 h-full bg-red-500"></div>}
+                                <div className="flex justify-between items-center mb-2.5">
+                                    <span className="text-xs text-slate-600 font-bold uppercase tracking-wide">Kurtosis (Impulses)</span>
+                                    <span className={`font-mono text-lg font-bold ${sensorData.kurtosis > 4.0 ? 'text-red-600' : 'text-blue-600'}`}>
+                                        {sensorData.kurtosis.toFixed(2)}
+                                    </span>
+                                </div>
+                                <div className="w-full bg-slate-100 rounded-full h-1.5 overflow-hidden">
+                                    <div className={`h-full rounded-full transition-all duration-300 ${sensorData.kurtosis > 4.0 ? 'bg-red-500' : 'bg-blue-500'}`} style={{ width: `${Math.min(100, (sensorData.kurtosis / 7) * 100)}%` }}></div>
+                                </div>
+                            </div>
+                            
+                            {/* RMS Progress Box */}
+                            <div className="bg-white p-4 rounded-xl border border-slate-100 shadow-sm relative overflow-hidden">
+                                {isFaulty && <div className="absolute top-0 left-0 w-1 h-full bg-red-500"></div>}
+                                <div className="flex justify-between items-center mb-2.5">
+                                    <span className="text-xs text-slate-600 font-bold uppercase tracking-wide">RMS (Total Energy)</span>
+                                    <span className={`font-mono text-lg font-bold ${sensorData.rms > 2.5 ? 'text-red-600' : 'text-blue-600'}`}>
+                                        {sensorData.rms.toFixed(2)} g
+                                    </span>
+                                </div>
+                                <div className="w-full bg-slate-100 rounded-full h-1.5 overflow-hidden">
+                                    <div className={`h-full rounded-full transition-all duration-300 ${sensorData.rms > 2.5 ? 'bg-red-500' : 'bg-blue-500'}`} style={{ width: `${Math.min(100, (sensorData.rms / 4) * 100)}%` }}></div>
+                                </div>
+                            </div>
+                        </div>
+
+                        {/* Edge Decision Logic */}
+                        <div className={`mt-5 pt-5 border-t ${isFaulty ? 'border-red-200' : 'border-slate-100'}`}>
+                            <h3 className="text-[10px] font-bold text-slate-400 mb-2 uppercase tracking-wider">Local Edge Decision</h3>
+                            {isFaulty ? (
+                                <div className="bg-red-100/80 border border-red-200 p-3.5 rounded-xl flex items-start gap-3">
+                                    <AlertTriangle className="w-5 h-5 text-red-600 shrink-0 mt-0.5 animate-pulse" />
+                                    <div>
+                                        <p className="text-sm font-bold text-red-800">Anomaly Flag: TRUE</p>
+                                        <p className="text-xs text-red-600/90 mt-1 font-medium leading-tight">BPFO threshold exceeded. Bypassing standard telemetry schedule.</p>
+                                    </div>
+                                </div>
+                            ) : (
+                                <div className="bg-blue-50 border border-blue-100 p-3.5 rounded-xl flex items-center gap-3">
+                                    <CheckCircle className="w-5 h-5 text-blue-600" />
+                                    <p className="text-sm font-bold text-blue-700">Status: Nominal</p>
+                                </div>
+                            )}
+                        </div>
+                    </div>
+
+                    {/* Interactive Mesh Network Visualizer */}
+                    <div className="bg-white rounded-2xl border border-slate-200 shadow-sm p-5 flex flex-col">
+                        <div className="flex justify-between items-start mb-4 border-b border-slate-100 pb-3">
+                            <div>
+                                <h2 className="text-xs font-bold text-slate-800 uppercase tracking-wider flex items-center gap-2">
+                                    <Network className="w-4 h-4 text-indigo-500" /> Wirepas Mesh Network
+                                </h2>
+                                <p className="text-[10px] text-slate-400 mt-1 flex items-center gap-1">
+                                    Multi-hop Topology <Radio className="w-3 h-3 text-emerald-500 animate-pulse ml-1" />
+                                </p>
+                            </div>
+                            <button
+                                onClick={() => setMeshState(prev => prev === 'normal' ? 'blocked' : 'normal')}
+                                className={`text-[10px] font-bold px-2 py-1 rounded-lg border transition-colors ${meshState === 'blocked' ? 'bg-amber-100 text-amber-700 border-amber-300' : 'bg-slate-50 text-slate-600 border-slate-200 hover:bg-slate-100'}`}
+                            >
+                                {meshState === 'blocked' ? 'Clear Blockage' : 'Simulate RF Blockage'}
+                            </button>
+                        </div>
+
+                        {/* Visual Mesh Topology */}
+                        <div className="relative h-28 bg-slate-50/80 rounded-xl border border-slate-100 mb-4 p-2 shadow-inner">
+                            <svg className="w-full h-full" viewBox="0 0 200 80">
+                                {/* Node A -> Gateway (Direct Path) */}
+                                <line x1="30" y1="40" x2="170" y2="40" stroke={meshState === 'normal' ? '#818cf8' : '#cbd5e1'} strokeWidth="2" strokeDasharray="4 2" className={meshState === 'normal' ? 'animate-[dash_1s_linear_infinite]' : ''} />
+                                {meshState === 'blocked' && <line x1="90" y1="30" x2="110" y2="50" stroke="#ef4444" strokeWidth="3" />}
+                                {meshState === 'blocked' && <line x1="90" y1="50" x2="110" y2="30" stroke="#ef4444" strokeWidth="3" />}
+
+                                {/* Reroute Path: Node A -> Node C -> Gateway */}
+                                <line x1="30" y1="40" x2="100" y2="15" stroke={meshState === 'blocked' ? '#818cf8' : '#e2e8f0'} strokeWidth="2" strokeDasharray="4 2" className={meshState === 'blocked' ? 'animate-[dash_1s_linear_infinite]' : ''} />
+                                <line x1="100" y1="15" x2="170" y2="40" stroke={meshState === 'blocked' ? '#818cf8' : '#e2e8f0'} strokeWidth="2" strokeDasharray="4 2" className={meshState === 'blocked' ? 'animate-[dash_1s_linear_infinite]' : ''} />
+
+                                {/* Unused Path: Node A -> Node B */}
+                                <line x1="30" y1="40" x2="100" y2="65" stroke="#e2e8f0" strokeWidth="2" />
+
+                                {/* Nodes */}
+                                <circle cx="30" cy="40" r="8" fill={isFaulty ? '#ef4444' : '#3b82f6'} />
+                                <text x="30" y="58" fontSize="8" textAnchor="middle" fill="#64748b" fontWeight="bold">Node A</text>
+
+                                <circle cx="100" cy="15" r="6" fill="#94a3b8" />
+                                <text x="100" y="28" fontSize="6" textAnchor="middle" fill="#94a3b8">Node C</text>
+
+                                <circle cx="100" cy="65" r="6" fill="#94a3b8" />
+                                <text x="100" y="78" fontSize="6" textAnchor="middle" fill="#94a3b8">Node B</text>
+
+                                <circle cx="170" cy="40" r="10" fill="#4f46e5" />
+                                <text x="170" y="58" fontSize="8" textAnchor="middle" fill="#4f46e5" fontWeight="bold">Gateway</text>
+                            </svg>
+                            <style>{`@keyframes dash { to { stroke-dashoffset: -12; } }`}</style>
+                        </div>
+
+                        {/* Payload Logs */}
+                        <div className="flex-1 flex flex-col gap-2">
+                            {meshLogs.map((log, idx) => (
+                                <div key={log.id} className={`text-[10px] font-mono p-2 rounded-xl border transition-all duration-300 ${idx === 0 ? 'opacity-100 shadow-sm translate-x-0' : 'opacity-50 translate-x-1'} ${log.isAnomaly ? 'bg-red-50 border-red-200 text-red-800' : 'bg-slate-50 border-slate-200 text-slate-600'}`}>
+                                    <div className="flex justify-between mb-1.5 font-bold">
+                                        <span className={meshState === 'blocked' ? 'text-amber-600 flex items-center gap-1' : 'flex items-center gap-1'}>
+                                            <Network className="w-3 h-3" /> {log.path}
+                                        </span>
+                                        <span className="flex items-center gap-2">
+                                            <span className={`${meshState === 'blocked' ? 'text-amber-600' : 'text-emerald-600'}`}>{log.latency}ms</span>
+                                            <span className="text-slate-400">{log.time}</span>
+                                        </span>
+                                    </div>
+                                    <div className={`px-2 py-1.5 rounded-lg border ${log.isAnomaly ? 'bg-white border-red-100' : 'bg-white/80 border-slate-100'}`}>
+                                        {`{kurt:${log.payload.kurt}, state:"${log.payload.state}"}`}
+                                    </div>
+                                </div>
+                            ))}
+                        </div>
+                    </div>
+
+                </div>
+            </div>
         </div>
-
-        <div className="col-span-3 bg-white border-l-2 border-gray-200 flex flex-col z-10 shadow-xl">
-          <div className="p-6 border-b-2 border-gray-100 bg-gray-50 shrink-0">
-            <h2 className="text-sm font-extrabold text-black mb-1 uppercase tracking-widest flex items-center">
-              <CheckCircle size={16} className="mr-2 text-[#047857]" /> Validation Output
-            </h2>
-            <p className="text-xs text-gray-500">DFA-RAG Agentic Reasoning Log</p>
-          </div>
-
-          <div className="flex-1 overflow-y-auto p-4 bg-white">
-            {!dfmResults ? (
-               <div className="h-full flex flex-col items-center justify-center text-center px-4">
-                 <ShieldAlert size={48} className="text-gray-200 mb-4" />
-                 <p className="text-sm font-bold text-gray-400">NO ACTIVE DETECTIONS</p>
-                 <p className="text-xs text-gray-400 mt-2">Run the Neural DFA Logic to evaluate the extracted topology against enterprise constraints.</p>
-               </div>
-            ) : (
-              <div className="space-y-4">
-                {dfmResults.map((issue, idx) => (
-                  <div key={idx} className={`rounded-lg border-2 p-4 shadow-sm ${issue.severity === 'CRITICAL' ? 'border-red-500 bg-red-50' : 'border-orange-400 bg-orange-50'}`}>
-                    <div className="flex justify-between items-center mb-3">
-                      <span className={`text-[10px] font-extrabold px-2 py-1 rounded uppercase tracking-widest ${issue.severity === 'CRITICAL' ? 'bg-red-600 text-white' : 'bg-orange-500 text-white'}`}>
-                        {issue.severity}
-                      </span>
-                      <span className="text-xs font-mono font-bold text-gray-600">{issue.ruleCode}</span>
-                    </div>
-                    
-                    <p className="text-sm font-bold text-black leading-snug mb-3">
-                      {issue.description}
-                    </p>
-                    
-                    <div className="grid grid-cols-2 gap-2 bg-white rounded border border-gray-200 p-2">
-                      <div>
-                        <span className="block text-[9px] uppercase tracking-widest text-gray-400 mb-0.5">Constraint</span>
-                        <span className="block text-xs font-mono font-bold text-[#047857]">{issue.expected}</span>
-                      </div>
-                      <div>
-                        <span className="block text-[9px] uppercase tracking-widest text-gray-400 mb-0.5">Extracted</span>
-                        <span className={`block text-xs font-mono font-bold ${issue.severity === 'CRITICAL' ? 'text-red-600' : 'text-orange-600'}`}>{issue.actual}</span>
-                      </div>
-                    </div>
-                    <div className="mt-3 text-right">
-                      <span className="text-[10px] font-mono text-gray-500">Target Mesh: {issue.faceId}</span>
-                    </div>
-                  </div>
-                ))}
-              </div>
-            )}
-          </div>
-        </div>
-
-      </main>
-    </div>
-  );
+    );
 }
