@@ -1,419 +1,411 @@
-import React, { useState, useEffect } from 'react';
-import { Activity, Cpu, AlertTriangle, CheckCircle, Zap, Thermometer, Database, Filter, Network, Server, ArrowLeft, Radio, Signal } from 'lucide-react';
+import React, { useState, useEffect, useRef } from 'react';
+import { 
+  Network, Database, FileText, Zap, ShieldCheck, Search, 
+  GitMerge, Terminal, Cpu, CheckCircle, AlertTriangle, 
+  Hexagon, ScanLine, FileOutput, ServerCog
+} from 'lucide-react';
 
-export default function App() {
-    const [isFaulty, setIsFaulty] = useState(false);
-    const [isFiltered, setIsFiltered] = useState(true);
-    const [meshState, setMeshState] = useState('normal'); // 'normal' | 'blocked'
-    const [tick, setTick] = useState(0);
-
-    // Simulated Edge Data State
-    const [sensorData, setSensorData] = useState({
-        kurtosis: 2.8,
-        rms: 1.2,
-        crestFactor: 3.1,
-        temperature: 45.2,
-        cpuLoad: 12
+const AgenticCoreSimulation = {
+  ingestEnterpriseDocument: async (fileName) => {
+    return new Promise((resolve) => {
+      setTimeout(() => {
+        resolve({
+          id: `DOC-${Math.random().toString(36).substr(2, 9).toUpperCase()}`,
+          name: fileName,
+          status: "VECTORIZED",
+          chunks: 142,
+          embeddingsGenerated: true,
+          timestamp: new Date().toISOString()
+        });
+      }, 2500);
     });
+  },
 
-    const [waveformData, setWaveformData] = useState(Array(50).fill(25));
-    const [fftData, setFftData] = useState(Array(20).fill(2));
-    const [meshLogs, setMeshLogs] = useState([]);
+  executeDfaRagPipeline: async (cadInput, onStepUpdate) => {
+    return new Promise(async (resolve) => {
+      onStepUpdate('PLANNER', { status: 'ACTIVE', log: `Received tensor payload: ${cadInput.featureType}. Formulating semantic query...` });
+      await new Promise(r => setTimeout(r, 800));
+      
+      onStepUpdate('RETRIEVER', { status: 'ACTIVE', log: `Querying Qdrant Vector Store for embedded guidelines on ${cadInput.material} / ${cadInput.featureType}...` });
+      await new Promise(r => setTimeout(r, 1200));
+      
+      const retrievedRules = [
+        { id: "VAR-MOLD-PC-014", text: "Minimum draft angle for PC/ABS mounting bosses must exceed 2.5 degrees.", vectorDistance: 0.982 },
+        { id: "VAR-STRUCT-RIB-09", text: "Rib base thickness must be 40-60% of adjoining nominal wall.", vectorDistance: 0.814 }
+      ];
+      
+      onStepUpdate('VERIFIER', { status: 'ACTIVE', log: `Applying retrieved constraint (VAR-MOLD-PC-014) to deterministic OCCT mathematical extraction (${cadInput.measuredDraft}°)...` });
+      await new Promise(r => setTimeout(r, 1500));
+      
+      const isCompliant = cadInput.measuredDraft >= 2.5;
+      
+      onStepUpdate('LLM_SYNTHESIS', { status: 'ACTIVE', log: `Llama-3 70B generating deterministic corrective action payload. Temperature: 0.0` });
+      await new Promise(r => setTimeout(r, 1000));
+      
+      resolve({
+        compliant: isCompliant,
+        rulesAssessed: retrievedRules,
+        action: isCompliant ? "PROCEED" : "REJECT_TOOLING",
+        generatedPayload: {
+          faceId: cadInput.faceId,
+          severity: isCompliant ? "PASS" : "CRITICAL",
+          rule: retrievedRules[0].id,
+          expected: ">= 2.5°",
+          actual: `${cadInput.measuredDraft}°`,
+          recommendation: "Increase draft angle via OCCT boolean operation prior to mold flow simulation."
+        }
+      });
+    });
+  }
+};
 
-    // Main simulation loop
-    useEffect(() => {
-        const interval = setInterval(() => {
-            setTick(t => t + 1);
+export default function AegisCADLayerTwo() {
+  const [systemLogs, setSystemLogs] = useState([]);
+  const [vectorDb, setVectorDb] = useState([
+    { id: 'V-001', doc: 'VARROC_APQP_MOLD_v4.pdf', chunk: 'Sec 3.1: Boss Draft', vector: '[0.014, -0.821, 0.442, ...]', dimensions: 1024 },
+    { id: 'V-002', doc: 'VARROC_APQP_MOLD_v4.pdf', chunk: 'Sec 3.2: Rib Ratio', vector: '[-0.112, 0.045, 0.991, ...]', dimensions: 1024 },
+    { id: 'V-003', doc: 'VARROC_MAT_SPEC_PCABS.pdf', chunk: 'Thermal Shrinkage', vector: '[0.551, 0.332, -0.118, ...]', dimensions: 1024 },
+  ]);
+  const [ingestionState, setIngestionState] = useState('IDLE');
+  const [pipelineState, setPipelineState] = useState({
+    activeNode: 'IDLE',
+    stepData: null,
+    finalResult: null
+  });
+  
+  const terminalRef = useRef(null);
+  const vectorListRef = useRef(null);
 
-            // 1. Simulate Raw Waveform (Time Domain)
-            let newValue;
-            // High noise if unfiltered, low noise if band-pass filter is on
-            const noiseLevel = isFiltered ? (Math.random() * 4 - 2) : (Math.random() * 16 - 8);
+  const addLog = (msg, type = 'INFO') => {
+    setSystemLogs(prev => [...prev, { ts: new Date().toISOString().substring(11, 23), msg, type }]);
+  };
 
-            if (!isFaulty) {
-                // Healthy: Sine wave + noise
-                newValue = 25 + Math.sin(tick * 0.5) * 8 + noiseLevel;
-            } else {
-                // Faulty: Sine wave + noise + severe high-frequency impacts (BPFO)
-                const impact = (tick % 6 === 0) ? 22 : 0;
-                newValue = 25 + Math.sin(tick * 0.5) * 8 + noiseLevel + impact;
-            }
+  useEffect(() => {
+    if (terminalRef.current) {
+      terminalRef.current.scrollTop = terminalRef.current.scrollHeight;
+    }
+  }, [systemLogs]);
 
-            setWaveformData(prev => {
-                const next = [...prev, newValue];
-                return next.slice(-50); // Keep last 50 points
-            });
+  useEffect(() => {
+    if (vectorListRef.current) {
+      vectorListRef.current.scrollTop = 0;
+    }
+  }, [vectorDb]);
 
-            // 2. Simulate FFT, Features & CPU Load
-            if (!isFaulty) {
-                setSensorData({
-                    kurtosis: 2.8 + (Math.random() * 0.4),
-                    rms: 1.2 + (Math.random() * 0.1),
-                    crestFactor: 3.1 + (Math.random() * 0.2),
-                    temperature: 45.0 + (Math.random() * 1.5),
-                    cpuLoad: isFiltered ? 18 + Math.random() * 4 : 12 + Math.random() * 2
-                });
+  useEffect(() => {
+    addLog('AegisCAD Cognitive Core Initialized', 'OK');
+    addLog('LangGraph Orchestrator: STANDBY', 'INFO');
+    addLog('Qdrant Vector Database: CONNECTED', 'OK');
+    addLog('vLLM Endpoint (Meta Llama-3 70B): ACTIVE', 'OK');
+  }, []);
 
-                setFftData(prev => prev.map((v, i) => i < 5 ? 10 + Math.random() * 5 : 2 + Math.random() * 2));
-            } else {
-                setSensorData(prev => ({
-                    kurtosis: Math.min(6.5, prev.kurtosis + 0.5 + Math.random()),
-                    rms: Math.min(3.5, prev.rms + 0.2),
-                    crestFactor: Math.min(7.0, prev.crestFactor + 0.4),
-                    temperature: Math.min(68.0, prev.temperature + 1.2),
-                    cpuLoad: 35 + Math.random() * 10 // CPU spikes when processing anomalies
-                }));
+  const handleDocumentUpload = async () => {
+    setIngestionState('INGESTING');
+    addLog('Vision-Language Parser (LlamaParse) processing VARROC_TOLERANCES_2026.pdf', 'INFO');
+    try {
+      const result = await AgenticCoreSimulation.ingestEnterpriseDocument('VARROC_TOLERANCES_2026.pdf');
+      setVectorDb(prev => [
+        { id: `V-${Math.floor(Math.random() * 900) + 100}`, doc: result.name, chunk: 'Table 4.2: Clearance', vector: '[0.771, -0.224, 0.105, ...]', dimensions: 1024 },
+        { id: `V-${Math.floor(Math.random() * 900) + 100}`, doc: result.name, chunk: 'Sec 8: Fasteners', vector: '[-0.042, 0.881, -0.334, ...]', dimensions: 1024 },
+        ...prev
+      ]);
+      setIngestionState('COMPLETE');
+      addLog(`Ingestion Complete. ${result.chunks} chunks vectorized via Cohere Embed V3.`, 'OK');
+      setTimeout(() => setIngestionState('IDLE'), 3000);
+    } catch (e) {
+      setIngestionState('ERROR');
+      addLog('Ingestion Pipeline Failure', 'ERR');
+    }
+  };
 
-                setFftData(prev => prev.map((v, i) => {
-                    if (i === 12) return 45 + Math.random() * 10; // The BPFO Spike!
-                    if (i < 5) return 15 + Math.random() * 5;
-                    return 5 + Math.random() * 5;
-                }));
-            }
-
-        }, 150);
-
-        return () => clearInterval(interval);
-    }, [isFaulty, tick, isFiltered]);
-
-    // Simulate Mesh Gateway Transmission every 2 seconds
-    useEffect(() => {
-        const txInterval = setInterval(() => {
-            const isAnomaly = sensorData.kurtosis > 4.0 || sensorData.temperature > 55.0;
-            const path = meshState === 'normal' ? 'Node_A ➔ Gateway' : 'Node_A ➔ Node_C ➔ Gateway';
-
-            const newLog = {
-                id: Math.random().toString(36).substring(7),
-                time: new Date().toLocaleTimeString(),
-                isAnomaly,
-                path,
-                latency: Math.floor(12 + Math.random() * 15) + (meshState === 'blocked' ? 45 : 0),
-                payload: {
-                    kurt: sensorData.kurtosis.toFixed(2),
-                    state: isAnomaly ? "DEFECT" : "CLEAR"
-                }
-            };
-
-            setMeshLogs(prev => [newLog, ...prev].slice(0, 3));
-        }, 2000);
-
-        return () => clearInterval(txInterval);
-    }, [sensorData, meshState]);
-
-    // SVG Path generator for waveform
-    const generatePath = () => {
-        const width = 500;
-        const height = 100;
-        const step = width / (waveformData.length - 1);
-
-        return waveformData.reduce((path, val, idx) => {
-            const x = idx * step;
-            const y = Math.max(0, Math.min(height, height - (val / 50 * height)));
-            return `${path} ${idx === 0 ? 'M' : 'L'} ${x},${y}`;
-        }, "");
+  const simulateIncomingCadPayload = async () => {
+    setPipelineState({ activeNode: 'IDLE', stepData: null, finalResult: null });
+    addLog('Incoming gRPC Stream: Attributed Adjacency Graph from Layer 1', 'INFO');
+    
+    const mockCadFeature = {
+      faceId: "VAR-BOSS-MNT-L",
+      featureType: "CYLINDRICAL_BOSS",
+      material: "PC/ABS",
+      measuredDraft: 0.8 
     };
 
-    return (
-        <div className={`min-h-screen text-slate-800 font-sans p-4 md:p-6 lg:p-8 transition-colors duration-700 ${isFaulty ? 'bg-red-50/40 selection:bg-red-200' : 'bg-slate-50 selection:bg-blue-100'}`}>
-            
-            {/* Top Navigation / Back Button */}
-            <div className="max-w-7xl mx-auto mb-6">
-                <button 
-                    onClick={() => window.location.href = '/'}
-                    className="flex items-center gap-2 text-xs font-black uppercase tracking-widest text-slate-500 hover:text-slate-900 transition-colors bg-white px-4 py-2 rounded-xl border border-slate-200 shadow-sm hover:shadow-md"
-                >
-                    <ArrowLeft className="w-4 h-4" /> Back to Home
-                </button>
-            </div>
+    try {
+      const result = await AgenticCoreSimulation.executeDfaRagPipeline(mockCadFeature, (node, data) => {
+        setPipelineState(prev => ({ ...prev, activeNode: node, stepData: data }));
+        addLog(data.log, 'EXEC');
+      });
+      
+      setPipelineState(prev => ({ ...prev, activeNode: 'COMPLETE', finalResult: result }));
+      addLog(`Validation complete. Disposition: ${result.action}`, result.compliant ? 'OK' : 'ERR');
+    } catch (e) {
+      addLog('Agentic Execution Halted.', 'ERR');
+    }
+  };
 
-            {/* Header Bar */}
-            <div className="max-w-7xl mx-auto flex flex-col lg:flex-row justify-between items-start lg:items-center mb-6 pb-6 border-b border-slate-200 gap-4 relative z-10">
-                <div className="flex items-center gap-4">
-                    <div className={`p-3 rounded-xl shadow-lg transition-colors duration-500 ${isFaulty ? 'bg-red-600 shadow-red-600/30' : 'bg-blue-600 shadow-blue-600/20'}`}>
-                        <Cpu className="w-8 h-8 text-white" />
-                    </div>
-                    <div>
-                        <h1 className="text-2xl font-extrabold text-slate-900 tracking-tight flex items-center gap-2">
-                            Layer 1: Edge Intelligence
-                            {isFaulty && <span className="bg-red-100 text-red-700 text-[10px] px-2 py-0.5 rounded-full border border-red-200 animate-pulse ml-2">FAULT DETECTED</span>}
-                        </h1>
-                        <p className="text-sm text-slate-500 font-medium">Hybrid Piezo/MEMS + Embedded ARM Cortex Processor</p>
-                    </div>
-                </div>
+  const getNodeStyle = (nodeId) => {
+    if (pipelineState.activeNode === nodeId) return 'border-[#047857] bg-green-50 shadow-[0_0_20px_rgba(4,120,87,0.2)] scale-[1.02] z-20';
+    if (
+      (nodeId === 'PLANNER' && ['RETRIEVER', 'VERIFIER', 'LLM_SYNTHESIS', 'COMPLETE'].includes(pipelineState.activeNode)) ||
+      (nodeId === 'RETRIEVER' && ['VERIFIER', 'LLM_SYNTHESIS', 'COMPLETE'].includes(pipelineState.activeNode)) ||
+      (nodeId === 'VERIFIER' && ['LLM_SYNTHESIS', 'COMPLETE'].includes(pipelineState.activeNode)) ||
+      (nodeId === 'LLM_SYNTHESIS' && pipelineState.activeNode === 'COMPLETE')
+    ) return 'border-black bg-gray-50 opacity-60 scale-100 z-10';
+    return 'border-gray-200 bg-white opacity-40 scale-100 z-10';
+  };
 
-                <div className="flex flex-wrap items-center gap-3 bg-white p-2.5 rounded-xl border border-slate-200 shadow-sm w-full lg:w-auto">
-                    <span className="text-sm font-bold text-slate-500 pl-2 hidden sm:block">Controls:</span>
+  const getProgressHeight = () => {
+    switch(pipelineState.activeNode) {
+      case 'PLANNER': return '25%';
+      case 'RETRIEVER': return '50%';
+      case 'VERIFIER': return '75%';
+      case 'LLM_SYNTHESIS': return '100%';
+      case 'COMPLETE': return '100%';
+      default: return '0%';
+    }
+  };
 
-                    <div className="flex items-center bg-slate-50 rounded-lg p-1 border border-slate-100">
-                        <button
-                            onClick={() => setIsFiltered(!isFiltered)}
-                            className={`px-3 py-1.5 rounded-md font-bold text-xs transition-all flex items-center gap-1.5 ${isFiltered ? 'bg-white text-blue-700 shadow-sm border border-slate-200/50' : 'text-slate-400 hover:text-slate-600'}`}
-                        >
-                            <Filter className="w-3.5 h-3.5" /> Band-Pass Filter
-                        </button>
-                    </div>
-
-                    <div className="flex items-center bg-slate-50 rounded-lg p-1 border border-slate-100">
-                        <button
-                            onClick={() => setIsFaulty(false)}
-                            className={`px-4 py-1.5 rounded-md font-bold text-xs transition-all ${!isFaulty ? 'bg-white text-emerald-600 shadow-sm border border-slate-200/50' : 'text-slate-400 hover:text-slate-600'}`}
-                        >
-                            Healthy
-                        </button>
-                        <button
-                            onClick={() => setIsFaulty(true)}
-                            className={`px-4 py-1.5 rounded-md font-bold text-xs transition-all flex items-center gap-1.5 ${isFaulty ? 'bg-red-50 text-red-600 shadow-sm border border-red-100' : 'text-slate-400 hover:text-slate-600'}`}
-                        >
-                            <Zap className="w-3.5 h-3.5" /> Inject Defect
-                        </button>
-                    </div>
-                </div>
-            </div>
-
-            <div className="max-w-7xl mx-auto grid grid-cols-1 lg:grid-cols-3 gap-6 relative z-10">
-
-                {/* LEFT COLUMN: Sensor Data & Signal Processing */}
-                <div className="lg:col-span-2 space-y-6">
-
-                    {/* Waveform Panel */}
-                    <div className={`bg-white rounded-2xl border shadow-sm overflow-hidden relative transition-colors duration-500 ${isFaulty ? 'border-red-300 shadow-red-900/5' : 'border-slate-200'}`}>
-                        <div className={`absolute top-0 left-0 w-full h-1.5 transition-colors duration-500 ${isFaulty ? 'bg-red-500' : 'bg-blue-600'}`}></div>
-                        <div className={`p-5 flex justify-between items-center border-b transition-colors duration-500 ${isFaulty ? 'border-red-100 bg-red-50/50' : 'border-slate-100 bg-slate-50/50'}`}>
-                            <div>
-                                <h2 className="text-lg font-bold text-slate-800 flex items-center gap-2">
-                                    <Activity className={`w-5 h-5 ${isFaulty ? 'text-red-500 animate-pulse' : 'text-blue-600'}`} /> Raw Vibration Signal
-                                </h2>
-                                <p className="text-xs text-slate-500 font-medium mt-0.5 flex items-center gap-1">
-                                    <Signal className="w-3 h-3" /> Time-domain waveform (10kHz Sampling)
-                                </p>
-                            </div>
-                            <div className="text-right">
-                                <span className={`text-[10px] font-black tracking-widest px-2.5 py-1.5 rounded-full border ${isFiltered ? 'bg-blue-50 text-blue-700 border-blue-200' : 'bg-slate-100 text-slate-500 border-slate-200'}`}>
-                                    {isFiltered ? 'FILTER ACTIVE' : 'NOISY SIGNAL'}
-                                </span>
-                            </div>
-                        </div>
-
-                        <div className="p-6 relative h-60 bg-white flex items-center justify-center">
-                            <div className="absolute inset-0" style={{ backgroundImage: 'linear-gradient(rgba(0,0,0,0.03) 1px, transparent 1px), linear-gradient(90deg, rgba(0,0,0,0.03) 1px, transparent 1px)', backgroundSize: '20px 20px' }}></div>
-
-                            <svg viewBox="0 0 500 100" className="w-full h-full overflow-visible z-10">
-                                <path
-                                    d={generatePath()}
-                                    fill="none"
-                                    stroke={isFaulty ? "#ef4444" : "#2563eb"}
-                                    strokeWidth={isFiltered ? "2.5" : "1.5"}
-                                    strokeLinecap="round"
-                                    strokeLinejoin="round"
-                                    className="transition-colors duration-300"
-                                    style={{ filter: isFaulty ? 'drop-shadow(0px 2px 5px rgba(239,68,68,0.4))' : 'drop-shadow(0px 2px 4px rgba(37,99,235,0.2))' }}
-                                />
-                            </svg>
-
-                            {isFaulty && isFiltered && (
-                                <div className="absolute top-4 right-4 bg-red-50 border border-red-200 text-red-700 px-3 py-1.5 rounded-lg text-xs font-bold shadow-sm animate-pulse flex items-center gap-1.5 z-20">
-                                    <AlertTriangle className="w-4 h-4" /> BPFO IMPACTS ISOLATED
-                                </div>
-                            )}
-                        </div>
-                    </div>
-
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                        {/* FFT Frequency Spectrum */}
-                        <div className="bg-white rounded-2xl border border-slate-200 shadow-sm p-5 relative">
-                            <h2 className="text-xs font-bold text-slate-500 mb-1 uppercase tracking-wider flex items-center gap-2">
-                                Embedded FFT Processor
-                            </h2>
-                            <p className="text-[10px] text-slate-400 mb-4">Translating time-domain to frequency spectrum.</p>
-
-                            <div className="h-32 flex items-end justify-between gap-1.5 mt-2 bg-slate-50 p-2 rounded-xl border border-slate-100">
-                                {fftData.map((val, i) => (
-                                    <div key={i} className="w-full h-full flex items-end group relative">
-                                        <div
-                                            className={`w-full rounded-t-sm transition-all duration-75 ${i === 12 && isFaulty ? 'bg-red-500 shadow-[0_0_8px_rgba(239,68,68,0.4)]' : 'bg-blue-400 group-hover:bg-blue-500'}`}
-                                            style={{ height: `${val}%` }}
-                                        ></div>
-                                        {i === 12 && isFaulty && (
-                                            <span 
-                                                className="absolute left-1/2 -translate-x-1/2 mb-1 text-[10px] font-bold text-red-600 bg-red-50 px-1 rounded border border-red-100 z-10"
-                                                style={{ bottom: `${val}%` }}
-                                            >
-                                                BPFO
-                                            </span>
-                                        )}
-                                    </div>
-                                ))}
-                            </div>
-                            <div className="flex justify-between text-[10px] text-slate-400 mt-2 font-bold px-1">
-                                <span>0 Hz</span>
-                                <span>Defect Frequencies</span>
-                                <span>500 Hz</span>
-                            </div>
-                        </div>
-
-                        {/* ARM Cortex Edge Compute Load */}
-                        <div className="bg-white rounded-2xl border border-slate-200 shadow-sm p-5 flex flex-col justify-between">
-                            <div>
-                                <h2 className="text-xs font-bold text-slate-500 mb-1 uppercase tracking-wider flex items-center gap-2">
-                                    <Server className="w-4 h-4" /> Edge Compute Metrics
-                                </h2>
-                                <p className="text-[10px] text-slate-400 mb-4">Processing power retained at the factory level.</p>
-                            </div>
-
-                            <div className="space-y-5">
-                                <div className="bg-slate-50 p-4 rounded-xl border border-slate-100">
-                                    <div className="flex justify-between text-sm mb-2.5">
-                                        <span className="text-slate-600 font-medium">ARM CPU Load</span>
-                                        <span className={`font-mono font-bold ${sensorData.cpuLoad > 30 ? 'text-orange-500' : 'text-blue-600'}`}>
-                                            {sensorData.cpuLoad.toFixed(1)} %
-                                        </span>
-                                    </div>
-                                    <div className="w-full bg-slate-200 rounded-full h-2.5 overflow-hidden">
-                                        <div className={`h-full rounded-full transition-all duration-300 ${sensorData.cpuLoad > 30 ? 'bg-orange-500' : 'bg-blue-500'}`} style={{ width: `${sensorData.cpuLoad}%` }}></div>
-                                    </div>
-                                </div>
-
-                                <div className="flex justify-between items-center pt-1 px-1">
-                                    <span className="text-sm text-slate-600 font-medium flex items-center gap-1.5"><Thermometer className="w-4 h-4 text-slate-400" /> Ambient Temp</span>
-                                    <span className={`text-sm font-bold ${isFaulty ? 'text-red-600' : 'text-slate-600'}`}>{sensorData.temperature.toFixed(1)}°C</span>
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-
-                {/* RIGHT COLUMN: Feature Extraction & Mesh */}
-                <div className="space-y-6">
-
-                    {/* Edge AI Analytics Box */}
-                    <div className={`rounded-2xl border shadow-sm p-5 transition-all duration-500 ${isFaulty ? 'bg-red-50 border-red-300' : 'bg-white border-slate-200'}`}>
-                        <h2 className={`text-xs font-bold mb-4 uppercase tracking-wider flex items-center gap-2 ${isFaulty ? 'text-red-600' : 'text-slate-500'}`}>
-                            <Database className={`w-4 h-4 ${isFaulty ? 'text-red-600' : 'text-blue-500'}`} /> Extracted Health Indicators
-                        </h2>
-
-                        <div className="space-y-4">
-                            {/* Kurtosis Progress Box */}
-                            <div className="bg-white p-4 rounded-xl border border-slate-100 shadow-sm relative overflow-hidden">
-                                {isFaulty && <div className="absolute top-0 left-0 w-1 h-full bg-red-500"></div>}
-                                <div className="flex justify-between items-center mb-2.5">
-                                    <span className="text-xs text-slate-600 font-bold uppercase tracking-wide">Kurtosis (Impulses)</span>
-                                    <span className={`font-mono text-lg font-bold ${sensorData.kurtosis > 4.0 ? 'text-red-600' : 'text-blue-600'}`}>
-                                        {sensorData.kurtosis.toFixed(2)}
-                                    </span>
-                                </div>
-                                <div className="w-full bg-slate-100 rounded-full h-1.5 overflow-hidden">
-                                    <div className={`h-full rounded-full transition-all duration-300 ${sensorData.kurtosis > 4.0 ? 'bg-red-500' : 'bg-blue-500'}`} style={{ width: `${Math.min(100, (sensorData.kurtosis / 7) * 100)}%` }}></div>
-                                </div>
-                            </div>
-                            
-                            {/* RMS Progress Box */}
-                            <div className="bg-white p-4 rounded-xl border border-slate-100 shadow-sm relative overflow-hidden">
-                                {isFaulty && <div className="absolute top-0 left-0 w-1 h-full bg-red-500"></div>}
-                                <div className="flex justify-between items-center mb-2.5">
-                                    <span className="text-xs text-slate-600 font-bold uppercase tracking-wide">RMS (Total Energy)</span>
-                                    <span className={`font-mono text-lg font-bold ${sensorData.rms > 2.5 ? 'text-red-600' : 'text-blue-600'}`}>
-                                        {sensorData.rms.toFixed(2)} g
-                                    </span>
-                                </div>
-                                <div className="w-full bg-slate-100 rounded-full h-1.5 overflow-hidden">
-                                    <div className={`h-full rounded-full transition-all duration-300 ${sensorData.rms > 2.5 ? 'bg-red-500' : 'bg-blue-500'}`} style={{ width: `${Math.min(100, (sensorData.rms / 4) * 100)}%` }}></div>
-                                </div>
-                            </div>
-                        </div>
-
-                        {/* Edge Decision Logic */}
-                        <div className={`mt-5 pt-5 border-t ${isFaulty ? 'border-red-200' : 'border-slate-100'}`}>
-                            <h3 className="text-[10px] font-bold text-slate-400 mb-2 uppercase tracking-wider">Local Edge Decision</h3>
-                            {isFaulty ? (
-                                <div className="bg-red-100/80 border border-red-200 p-3.5 rounded-xl flex items-start gap-3">
-                                    <AlertTriangle className="w-5 h-5 text-red-600 shrink-0 mt-0.5 animate-pulse" />
-                                    <div>
-                                        <p className="text-sm font-bold text-red-800">Anomaly Flag: TRUE</p>
-                                        <p className="text-xs text-red-600/90 mt-1 font-medium leading-tight">BPFO threshold exceeded. Bypassing standard telemetry schedule.</p>
-                                    </div>
-                                </div>
-                            ) : (
-                                <div className="bg-blue-50 border border-blue-100 p-3.5 rounded-xl flex items-center gap-3">
-                                    <CheckCircle className="w-5 h-5 text-blue-600" />
-                                    <p className="text-sm font-bold text-blue-700">Status: Nominal</p>
-                                </div>
-                            )}
-                        </div>
-                    </div>
-
-                    {/* Interactive Mesh Network Visualizer */}
-                    <div className="bg-white rounded-2xl border border-slate-200 shadow-sm p-5 flex flex-col">
-                        <div className="flex justify-between items-start mb-4 border-b border-slate-100 pb-3">
-                            <div>
-                                <h2 className="text-xs font-bold text-slate-800 uppercase tracking-wider flex items-center gap-2">
-                                    <Network className="w-4 h-4 text-indigo-500" /> Wirepas Mesh Network
-                                </h2>
-                                <p className="text-[10px] text-slate-400 mt-1 flex items-center gap-1">
-                                    Multi-hop Topology <Radio className="w-3 h-3 text-emerald-500 animate-pulse ml-1" />
-                                </p>
-                            </div>
-                            <button
-                                onClick={() => setMeshState(prev => prev === 'normal' ? 'blocked' : 'normal')}
-                                className={`text-[10px] font-bold px-2 py-1 rounded-lg border transition-colors ${meshState === 'blocked' ? 'bg-amber-100 text-amber-700 border-amber-300' : 'bg-slate-50 text-slate-600 border-slate-200 hover:bg-slate-100'}`}
-                            >
-                                {meshState === 'blocked' ? 'Clear Blockage' : 'Simulate RF Blockage'}
-                            </button>
-                        </div>
-
-                        {/* Visual Mesh Topology */}
-                        <div className="relative h-28 bg-slate-50/80 rounded-xl border border-slate-100 mb-4 p-2 shadow-inner">
-                            <svg className="w-full h-full" viewBox="0 0 200 80">
-                                {/* Node A -> Gateway (Direct Path) */}
-                                <line x1="30" y1="40" x2="170" y2="40" stroke={meshState === 'normal' ? '#818cf8' : '#cbd5e1'} strokeWidth="2" strokeDasharray="4 2" className={meshState === 'normal' ? 'animate-[dash_1s_linear_infinite]' : ''} />
-                                {meshState === 'blocked' && <line x1="90" y1="30" x2="110" y2="50" stroke="#ef4444" strokeWidth="3" />}
-                                {meshState === 'blocked' && <line x1="90" y1="50" x2="110" y2="30" stroke="#ef4444" strokeWidth="3" />}
-
-                                {/* Reroute Path: Node A -> Node C -> Gateway */}
-                                <line x1="30" y1="40" x2="100" y2="15" stroke={meshState === 'blocked' ? '#818cf8' : '#e2e8f0'} strokeWidth="2" strokeDasharray="4 2" className={meshState === 'blocked' ? 'animate-[dash_1s_linear_infinite]' : ''} />
-                                <line x1="100" y1="15" x2="170" y2="40" stroke={meshState === 'blocked' ? '#818cf8' : '#e2e8f0'} strokeWidth="2" strokeDasharray="4 2" className={meshState === 'blocked' ? 'animate-[dash_1s_linear_infinite]' : ''} />
-
-                                {/* Unused Path: Node A -> Node B */}
-                                <line x1="30" y1="40" x2="100" y2="65" stroke="#e2e8f0" strokeWidth="2" />
-
-                                {/* Nodes */}
-                                <circle cx="30" cy="40" r="8" fill={isFaulty ? '#ef4444' : '#3b82f6'} />
-                                <text x="30" y="58" fontSize="8" textAnchor="middle" fill="#64748b" fontWeight="bold">Node A</text>
-
-                                <circle cx="100" cy="15" r="6" fill="#94a3b8" />
-                                <text x="100" y="28" fontSize="6" textAnchor="middle" fill="#94a3b8">Node C</text>
-
-                                <circle cx="100" cy="65" r="6" fill="#94a3b8" />
-                                <text x="100" y="78" fontSize="6" textAnchor="middle" fill="#94a3b8">Node B</text>
-
-                                <circle cx="170" cy="40" r="10" fill="#4f46e5" />
-                                <text x="170" y="58" fontSize="8" textAnchor="middle" fill="#4f46e5" fontWeight="bold">Gateway</text>
-                            </svg>
-                            <style>{`@keyframes dash { to { stroke-dashoffset: -12; } }`}</style>
-                        </div>
-
-                        {/* Payload Logs */}
-                        <div className="flex-1 flex flex-col gap-2">
-                            {meshLogs.map((log, idx) => (
-                                <div key={log.id} className={`text-[10px] font-mono p-2 rounded-xl border transition-all duration-300 ${idx === 0 ? 'opacity-100 shadow-sm translate-x-0' : 'opacity-50 translate-x-1'} ${log.isAnomaly ? 'bg-red-50 border-red-200 text-red-800' : 'bg-slate-50 border-slate-200 text-slate-600'}`}>
-                                    <div className="flex justify-between mb-1.5 font-bold">
-                                        <span className={meshState === 'blocked' ? 'text-amber-600 flex items-center gap-1' : 'flex items-center gap-1'}>
-                                            <Network className="w-3 h-3" /> {log.path}
-                                        </span>
-                                        <span className="flex items-center gap-2">
-                                            <span className={`${meshState === 'blocked' ? 'text-amber-600' : 'text-emerald-600'}`}>{log.latency}ms</span>
-                                            <span className="text-slate-400">{log.time}</span>
-                                        </span>
-                                    </div>
-                                    <div className={`px-2 py-1.5 rounded-lg border ${log.isAnomaly ? 'bg-white border-red-100' : 'bg-white/80 border-slate-100'}`}>
-                                        {`{kurt:${log.payload.kurt}, state:"${log.payload.state}"}`}
-                                    </div>
-                                </div>
-                            ))}
-                        </div>
-                    </div>
-
-                </div>
-            </div>
+  return (
+    <div className="h-screen w-screen bg-gray-100 text-black font-sans flex flex-col overflow-hidden selection:bg-green-200">
+      <header className="shrink-0 bg-[#047857] text-white py-3 px-6 flex items-center justify-between border-b-4 border-[#065f46] shadow-md z-30">
+        <div className="flex items-center space-x-4">
+          <Hexagon size={32} className="text-white fill-current opacity-90" />
+          <div>
+            <h1 className="text-2xl font-extrabold tracking-tighter leading-none">AEGISCAD<span className="font-light">NEXUS</span></h1>
+            <p className="text-[10px] font-mono tracking-[0.2em] text-green-200 uppercase">Layer 2 : Agentic Cognitive Core</p>
+          </div>
         </div>
-    );
+        <div className="flex items-center space-x-6 bg-black/20 px-4 py-2 rounded-lg border border-white/10">
+          <div className="flex items-center space-x-2">
+            <Cpu size={14} className="text-green-300" />
+            <span className="text-xs font-mono font-bold tracking-widest text-green-100">LLM: META_LLAMA-3_70B</span>
+          </div>
+          <div className="w-px h-4 bg-white/20"></div>
+          <div className="flex items-center space-x-2">
+            <Network size={14} className={pipelineState.activeNode !== 'IDLE' && pipelineState.activeNode !== 'COMPLETE' ? 'text-red-400 animate-pulse' : 'text-green-300'} />
+            <span className="text-xs font-mono font-bold tracking-widest text-green-100">LANGGRAPH: {pipelineState.activeNode === 'IDLE' ? 'STANDBY' : pipelineState.activeNode}</span>
+          </div>
+        </div>
+      </header>
+
+      <main className="flex-1 grid grid-cols-12 gap-0 min-h-0">
+        
+        <div className="col-span-3 bg-white border-r-2 border-gray-200 flex flex-col shadow-xl z-20 min-h-0">
+          <div className="shrink-0 p-6 pb-4">
+            <h2 className="text-sm font-extrabold text-black mb-1 uppercase tracking-widest flex items-center">
+              <Database size={16} className="mr-2 text-[#047857]" /> Knowledge Ingestion
+            </h2>
+            <p className="text-[11px] text-gray-500 mb-4 font-semibold uppercase tracking-wider">LlamaParse VLM Extraction</p>
+            
+            <div className="h-[52px] w-full">
+              <button 
+                onClick={handleDocumentUpload}
+                disabled={ingestionState === 'INGESTING'}
+                className="w-full h-full relative overflow-hidden bg-black hover:bg-gray-800 disabled:bg-gray-300 text-white font-bold px-4 rounded shadow-md transition-all duration-200 flex items-center justify-between"
+              >
+                <div className="flex items-center">
+                  <FileText size={18} className="mr-3 text-[#10b981]" />
+                  <span className="tracking-wide text-sm">{ingestionState === 'INGESTING' ? 'Processing PDF...' : 'Upload APQP Standard'}</span>
+                </div>
+                <div className="w-6 h-6 flex items-center justify-center">
+                  {ingestionState === 'INGESTING' && <ScanLine size={18} className="animate-pulse text-[#10b981]" />}
+                  {ingestionState === 'COMPLETE' && <CheckCircle size={18} className="text-[#10b981]" />}
+                </div>
+              </button>
+            </div>
+          </div>
+
+          <div className="flex-1 p-6 pt-2 flex flex-col min-h-0">
+            <div className="bg-gray-50 rounded-lg p-4 border border-gray-200 flex flex-col h-full min-h-0">
+              <h3 className="shrink-0 text-[10px] font-extrabold text-gray-400 mb-3 uppercase tracking-widest border-b border-gray-200 pb-2 flex justify-between">
+                <span>Vector Database (Qdrant)</span>
+                <span className="text-[#047857] bg-green-100 px-1.5 rounded">{vectorDb.length} Indexes</span>
+              </h3>
+              <div ref={vectorListRef} className="flex-1 overflow-y-auto space-y-3 pr-2 scroll-smooth">
+                {vectorDb.map((v, i) => (
+                  <div key={i} className="bg-white p-3 border border-gray-200 rounded shadow-sm hover:border-[#047857] transition-colors">
+                    <div className="flex justify-between items-center mb-2">
+                      <span className="text-[9px] font-mono font-bold bg-[#047857] text-white px-1.5 py-0.5 rounded shadow-sm">{v.id}</span>
+                      <span className="text-[9px] text-gray-400 font-mono font-bold bg-gray-100 px-1.5 py-0.5 rounded">{v.dimensions}D</span>
+                    </div>
+                    <p className="text-xs font-bold text-black truncate mb-1" title={v.doc}>{v.doc}</p>
+                    <p className="text-[10px] text-gray-500 truncate mb-2 font-medium">Chunk: <span className="text-gray-700">{v.chunk}</span></p>
+                    <p className="text-[9px] font-mono text-green-800 bg-green-50 p-1.5 rounded border border-green-100 truncate">{v.vector}</p>
+                  </div>
+                ))}
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div className="col-span-6 bg-[#f8fafc] flex flex-col relative border-r-2 border-gray-200 min-h-0 z-10">
+          <div className="shrink-0 bg-white border-b-2 border-gray-200 py-4 px-6 flex justify-between items-center shadow-sm z-20">
+            <div className="flex items-center space-x-3">
+              <ServerCog size={20} className="text-[#047857]" />
+              <div>
+                <h2 className="text-sm font-extrabold text-black uppercase tracking-widest leading-tight">Pipeline Matrix</h2>
+                <p className="text-[10px] text-gray-500 font-bold tracking-wider uppercase">DFA Node Execution</p>
+              </div>
+            </div>
+            <button 
+              onClick={simulateIncomingCadPayload}
+              disabled={pipelineState.activeNode !== 'IDLE' && pipelineState.activeNode !== 'COMPLETE'}
+              className="bg-[#047857] hover:bg-[#065f46] disabled:bg-gray-400 disabled:text-gray-200 text-white px-5 py-2.5 text-xs font-extrabold border border-transparent rounded shadow-md flex items-center transition-all disabled:shadow-none"
+            >
+              <Zap size={16} className="mr-2" />
+              SIMULATE LAYER 1 CAD INPUT
+            </button>
+          </div>
+
+          <div className="flex-1 flex flex-col items-center relative overflow-y-auto p-8">
+            <svg className="absolute inset-0 w-full h-full pointer-events-none opacity-20" xmlns="http://www.w3.org/2000/svg">
+              <defs>
+                <pattern id="grid" width="40" height="40" patternUnits="userSpaceOnUse">
+                  <path d="M 40 0 L 0 0 0 40" fill="none" stroke="#047857" strokeWidth="0.5"/>
+                </pattern>
+              </defs>
+              <rect width="100%" height="100%" fill="url(#grid)" />
+            </svg>
+
+            <div className="w-full max-w-2xl relative z-10 my-auto py-8">
+              <div className="text-center mb-10 shrink-0 bg-white/90 backdrop-blur py-4 rounded-xl border border-gray-200 shadow-sm inline-block px-10 mx-auto w-full">
+                <h2 className="text-xl font-extrabold tracking-[0.2em] text-black">LANGGRAPH ORCHESTRATOR</h2>
+                <p className="text-xs font-mono font-bold text-[#047857] uppercase tracking-widest mt-1">Definite Finite Automaton Routing</p>
+              </div>
+
+              <div className="flex flex-col space-y-8 relative">
+                <div className="absolute left-[3.25rem] top-12 bottom-12 w-1.5 bg-gray-200 z-0 rounded-full overflow-hidden shadow-inner">
+                   <div className="w-full bg-[#10b981] transition-all duration-700 ease-in-out shadow-[0_0_10px_#10b981]" style={{ height: getProgressHeight() }} />
+                </div>
+                
+                <div className={`relative z-10 flex items-center p-5 border-2 rounded-xl transition-all duration-500 bg-white ${getNodeStyle('PLANNER')}`}>
+                  <div className="w-14 h-14 rounded-full border-2 border-inherit flex items-center justify-center shadow-md shrink-0 mr-6 bg-white z-20">
+                    <Search size={22} className="text-inherit" />
+                  </div>
+                  <div>
+                    <h3 className="text-[13px] font-extrabold uppercase tracking-widest text-black">1. Planner Agent</h3>
+                    <p className="text-[11px] text-gray-500 mt-1 font-medium leading-relaxed">Parses B-Rep topology and formulates semantic constraints query based on tensor attributes.</p>
+                  </div>
+                </div>
+
+                <div className={`relative z-10 flex items-center p-5 border-2 rounded-xl transition-all duration-500 bg-white ${getNodeStyle('RETRIEVER')}`}>
+                  <div className="w-14 h-14 rounded-full border-2 border-inherit flex items-center justify-center shadow-md shrink-0 mr-6 bg-white z-20">
+                    <Database size={22} className="text-inherit" />
+                  </div>
+                  <div>
+                    <h3 className="text-[13px] font-extrabold uppercase tracking-widest text-black">2. Retriever Agent</h3>
+                    <p className="text-[11px] text-gray-500 mt-1 font-medium leading-relaxed">Executes High-Dimensional similarity search in Pinecone/Qdrant to locate domain rules.</p>
+                  </div>
+                </div>
+
+                <div className={`relative z-10 flex items-center p-5 border-2 rounded-xl transition-all duration-500 bg-white ${getNodeStyle('VERIFIER')}`}>
+                  <div className="w-14 h-14 rounded-full border-2 border-inherit flex items-center justify-center shadow-md shrink-0 mr-6 bg-white z-20">
+                    <GitMerge size={22} className="text-inherit" />
+                  </div>
+                  <div>
+                    <h3 className="text-[13px] font-extrabold uppercase tracking-widest text-black">3. Deterministic Verifier</h3>
+                    <p className="text-[11px] text-gray-500 mt-1 font-medium leading-relaxed">Cross-references text rules with deterministic OpenCASCADE measurements to prevent hallucinations.</p>
+                  </div>
+                </div>
+
+                <div className={`relative z-10 flex items-center p-5 border-2 rounded-xl transition-all duration-500 bg-white ${getNodeStyle('LLM_SYNTHESIS')}`}>
+                  <div className="w-14 h-14 rounded-full border-2 border-inherit flex items-center justify-center shadow-md shrink-0 mr-6 bg-white z-20">
+                    <Cpu size={22} className="text-inherit" />
+                  </div>
+                  <div>
+                    <h3 className="text-[13px] font-extrabold uppercase tracking-widest text-black">4. Llama-3 70B Synthesis</h3>
+                    <p className="text-[11px] text-gray-500 mt-1 font-medium leading-relaxed">Generates standardized JSON corrective action payload for CAD overlay. Temperature locked at 0.0.</p>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div className="col-span-3 bg-white flex flex-col z-20 shadow-[-10px_0_15px_-3px_rgba(0,0,0,0.1)] min-h-0">
+          <div className="shrink-0 p-6 border-b-2 border-gray-100 bg-gray-50">
+            <h2 className="text-sm font-extrabold text-black mb-1 uppercase tracking-widest flex items-center">
+              <FileOutput size={16} className="mr-2 text-[#047857]" /> Agentic Output
+            </h2>
+            <p className="text-[11px] font-bold text-gray-500 uppercase tracking-wider">Synthesized Payload</p>
+          </div>
+
+          <div className="flex-1 overflow-y-auto p-6 bg-white flex flex-col min-h-0">
+            {!pipelineState.finalResult ? (
+              <div className="flex-1 flex items-center justify-center">
+                 <p className="text-xs font-bold text-gray-300 italic text-center px-4 uppercase tracking-widest border-2 border-dashed border-gray-200 p-6 rounded-lg">Awaiting LangGraph execution...</p>
+              </div>
+            ) : (
+              <div className="space-y-4 animate-in fade-in duration-500">
+                <div className={`p-5 border-2 rounded-xl shadow-sm ${pipelineState.finalResult.compliant ? 'border-green-500 bg-green-50' : 'border-red-500 bg-red-50'}`}>
+                  <div className="flex items-center justify-between mb-4 border-b-2 pb-3 border-inherit">
+                    <span className={`text-xs font-extrabold uppercase tracking-[0.2em] flex items-center ${pipelineState.finalResult.compliant ? 'text-green-700' : 'text-red-700'}`}>
+                      {pipelineState.finalResult.compliant ? <CheckCircle size={18} className="mr-2"/> : <AlertTriangle size={18} className="mr-2"/>}
+                      {pipelineState.finalResult.action}
+                    </span>
+                  </div>
+                  
+                  <div className="space-y-3 text-xs">
+                    <div className="bg-white p-3 rounded-lg border border-inherit shadow-sm">
+                      <span className="block text-[9px] uppercase tracking-widest text-gray-400 font-extrabold mb-1.5">Target Mesh Entity</span>
+                      <span className="font-mono font-bold text-black text-sm">{pipelineState.finalResult.generatedPayload.faceId}</span>
+                    </div>
+
+                    <div className="grid grid-cols-2 gap-3">
+                      <div className="bg-white p-3 rounded-lg border border-inherit shadow-sm">
+                         <span className="block text-[9px] uppercase tracking-widest text-gray-400 font-extrabold mb-1.5">Constraint Rule</span>
+                         <span className="font-mono font-bold text-[#047857]">{pipelineState.finalResult.generatedPayload.rule}</span>
+                      </div>
+                      <div className="bg-white p-3 rounded-lg border border-inherit shadow-sm">
+                         <span className="block text-[9px] uppercase tracking-widest text-gray-400 font-extrabold mb-1.5">Severity</span>
+                         <span className={`font-mono font-bold ${pipelineState.finalResult.compliant ? 'text-green-600' : 'text-red-600'}`}>{pipelineState.finalResult.generatedPayload.severity}</span>
+                      </div>
+                    </div>
+
+                    <div className="grid grid-cols-2 gap-3">
+                      <div className="bg-white p-3 rounded-lg border border-inherit shadow-sm">
+                         <span className="block text-[9px] uppercase tracking-widest text-gray-400 font-extrabold mb-1.5">Expected Math</span>
+                         <span className="font-mono font-bold text-black">{pipelineState.finalResult.generatedPayload.expected}</span>
+                      </div>
+                      <div className="bg-white p-3 rounded-lg border border-inherit shadow-sm">
+                         <span className="block text-[9px] uppercase tracking-widest text-gray-400 font-extrabold mb-1.5">Extracted Math</span>
+                         <span className={`font-mono font-bold ${pipelineState.finalResult.compliant ? 'text-green-600' : 'text-red-600'}`}>{pipelineState.finalResult.generatedPayload.actual}</span>
+                      </div>
+                    </div>
+
+                    <div className="bg-white p-4 rounded-lg border border-inherit shadow-sm mt-3">
+                      <span className="block text-[9px] uppercase tracking-widest text-gray-400 font-extrabold mb-2">LLM Recommendation</span>
+                      <span className="font-bold text-black leading-relaxed block text-[11px]">{pipelineState.finalResult.generatedPayload.recommendation}</span>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            )}
+          </div>
+
+          <div className="shrink-0 h-64 bg-[#0a0a0a] flex flex-col border-t-4 border-black">
+            <div className="shrink-0 px-4 py-2.5 border-b border-gray-800 flex justify-between items-center bg-black/50">
+              <h2 className="text-[10px] font-bold text-[#047857] uppercase tracking-widest flex items-center">
+                <Terminal size={14} className="mr-2" /> Inference Telemetry
+              </h2>
+            </div>
+            <div ref={terminalRef} className="flex-1 overflow-y-auto p-4 font-mono text-[10px] space-y-2 leading-relaxed">
+              {systemLogs.map((log, idx) => (
+                <div key={idx} className="flex">
+                  <span className="text-gray-600 mr-3 shrink-0">[{log.ts}]</span>
+                  <span className={
+                    log.type === 'ERR' ? 'text-red-500 font-bold' : 
+                    log.type === 'OK' ? 'text-[#10b981] font-bold' : 
+                    log.type === 'EXEC' ? 'text-[#38bdf8]' : 'text-gray-300'
+                  }>
+                    {log.type === 'EXEC' ? '> ' : ''}{log.msg}
+                  </span>
+                </div>
+              ))}
+            </div>
+          </div>
+        </div>
+
+      </main>
+    </div>
+  );
 }
