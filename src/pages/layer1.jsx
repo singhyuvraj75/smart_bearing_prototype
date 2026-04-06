@@ -2,7 +2,8 @@ import React, { useState, useEffect, useRef } from 'react';
 import { 
   Network, Database, FileText, Zap, ShieldCheck, Search, 
   GitMerge, Terminal, Cpu, CheckCircle, AlertTriangle, 
-  Hexagon, ScanLine, FileOutput, ServerCog
+  Hexagon, ScanLine, FileOutput, ServerCog, Activity,
+  ArrowRight, Lock
 } from 'lucide-react';
 
 const AgenticCoreSimulation = {
@@ -24,10 +25,10 @@ const AgenticCoreSimulation = {
   executeDfaRagPipeline: async (cadInput, onStepUpdate) => {
     return new Promise(async (resolve) => {
       onStepUpdate('PLANNER', { status: 'ACTIVE', log: `Received tensor payload: ${cadInput.featureType}. Formulating semantic query...` });
-      await new Promise(r => setTimeout(r, 800));
+      await new Promise(r => setTimeout(r, 1200));
       
       onStepUpdate('RETRIEVER', { status: 'ACTIVE', log: `Querying Qdrant Vector Store for embedded guidelines on ${cadInput.material} / ${cadInput.featureType}...` });
-      await new Promise(r => setTimeout(r, 1200));
+      await new Promise(r => setTimeout(r, 1500));
       
       const retrievedRules = [
         { id: "VAR-MOLD-PC-014", text: "Minimum draft angle for PC/ABS mounting bosses must exceed 2.5 degrees.", vectorDistance: 0.982 },
@@ -35,12 +36,12 @@ const AgenticCoreSimulation = {
       ];
       
       onStepUpdate('VERIFIER', { status: 'ACTIVE', log: `Applying retrieved constraint (VAR-MOLD-PC-014) to deterministic OCCT mathematical extraction (${cadInput.measuredDraft}°)...` });
-      await new Promise(r => setTimeout(r, 1500));
+      await new Promise(r => setTimeout(r, 1800));
       
       const isCompliant = cadInput.measuredDraft >= 2.5;
       
       onStepUpdate('LLM_SYNTHESIS', { status: 'ACTIVE', log: `Llama-3 70B generating deterministic corrective action payload. Temperature: 0.0` });
-      await new Promise(r => setTimeout(r, 1000));
+      await new Promise(r => setTimeout(r, 1200));
       
       resolve({
         compliant: isCompliant,
@@ -142,26 +143,33 @@ export default function AegisCADLayerTwo() {
     }
   };
 
-  const getNodeStyle = (nodeId) => {
-    if (pipelineState.activeNode === nodeId) return 'border-[#047857] bg-green-50 shadow-[0_0_20px_rgba(4,120,87,0.2)] scale-[1.02] z-20';
-    if (
-      (nodeId === 'PLANNER' && ['RETRIEVER', 'VERIFIER', 'LLM_SYNTHESIS', 'COMPLETE'].includes(pipelineState.activeNode)) ||
-      (nodeId === 'RETRIEVER' && ['VERIFIER', 'LLM_SYNTHESIS', 'COMPLETE'].includes(pipelineState.activeNode)) ||
-      (nodeId === 'VERIFIER' && ['LLM_SYNTHESIS', 'COMPLETE'].includes(pipelineState.activeNode)) ||
-      (nodeId === 'LLM_SYNTHESIS' && pipelineState.activeNode === 'COMPLETE')
-    ) return 'border-black bg-gray-50 opacity-60 scale-100 z-10';
-    return 'border-gray-200 bg-white opacity-40 scale-100 z-10';
-  };
-
   const getProgressHeight = () => {
     switch(pipelineState.activeNode) {
-      case 'PLANNER': return '25%';
+      case 'PLANNER': return '20%';
       case 'RETRIEVER': return '50%';
       case 'VERIFIER': return '75%';
       case 'LLM_SYNTHESIS': return '100%';
       case 'COMPLETE': return '100%';
       default: return '0%';
     }
+  };
+
+  const isNodeActive = (nodeId) => pipelineState.activeNode === nodeId;
+  const isNodePast = (nodeId) => {
+    const sequence = ['IDLE', 'PLANNER', 'RETRIEVER', 'VERIFIER', 'LLM_SYNTHESIS', 'COMPLETE'];
+    return sequence.indexOf(pipelineState.activeNode) > sequence.indexOf(nodeId);
+  };
+
+  const getNodeClasses = (nodeId) => {
+    if (isNodeActive(nodeId)) return 'border-[#047857] bg-white shadow-[0_0_25px_rgba(4,120,87,0.15)] scale-[1.03] z-20 ring-1 ring-[#047857]';
+    if (isNodePast(nodeId)) return 'border-gray-300 bg-gray-50 opacity-70 scale-100 z-10';
+    return 'border-gray-200 bg-white opacity-40 scale-100 z-10';
+  };
+
+  const getIconClasses = (nodeId) => {
+    if (isNodeActive(nodeId)) return 'bg-[#047857] text-white border-[#047857]';
+    if (isNodePast(nodeId)) return 'bg-gray-200 text-gray-500 border-gray-300';
+    return 'bg-white text-gray-400 border-gray-200';
   };
 
   return (
@@ -174,7 +182,7 @@ export default function AegisCADLayerTwo() {
             <p className="text-[10px] font-mono tracking-[0.2em] text-green-200 uppercase">Layer 2 : Agentic Cognitive Core</p>
           </div>
         </div>
-        <div className="flex items-center space-x-6 bg-black/20 px-4 py-2 rounded-lg border border-white/10">
+        <div className="flex items-center space-x-6 bg-black/20 px-4 py-2 rounded-lg border border-white/10 shadow-inner">
           <div className="flex items-center space-x-2">
             <Cpu size={14} className="text-green-300" />
             <span className="text-xs font-mono font-bold tracking-widest text-green-100">LLM: META_LLAMA-3_70B</span>
@@ -189,47 +197,49 @@ export default function AegisCADLayerTwo() {
 
       <main className="flex-1 grid grid-cols-12 gap-0 min-h-0">
         
-        <div className="col-span-3 bg-white border-r-2 border-gray-200 flex flex-col shadow-xl z-20 min-h-0">
-          <div className="shrink-0 p-6 pb-4">
+        <div className="col-span-3 bg-white border-r-2 border-gray-200 flex flex-col shadow-2xl z-20 min-h-0">
+          <div className="shrink-0 p-6 pb-4 bg-gray-50 border-b border-gray-100">
             <h2 className="text-sm font-extrabold text-black mb-1 uppercase tracking-widest flex items-center">
               <Database size={16} className="mr-2 text-[#047857]" /> Knowledge Ingestion
             </h2>
-            <p className="text-[11px] text-gray-500 mb-4 font-semibold uppercase tracking-wider">LlamaParse VLM Extraction</p>
+            <p className="text-[11px] text-gray-500 mb-5 font-bold uppercase tracking-wider">LlamaParse VLM Extraction</p>
             
-            <div className="h-[52px] w-full">
+            <div className="h-14 w-full shrink-0">
               <button 
                 onClick={handleDocumentUpload}
                 disabled={ingestionState === 'INGESTING'}
-                className="w-full h-full relative overflow-hidden bg-black hover:bg-gray-800 disabled:bg-gray-300 text-white font-bold px-4 rounded shadow-md transition-all duration-200 flex items-center justify-between"
+                className="w-full h-full relative overflow-hidden bg-black hover:bg-gray-800 disabled:bg-gray-200 disabled:border-gray-300 border-2 border-transparent text-white disabled:text-gray-500 font-bold px-4 rounded shadow-md transition-all duration-300 flex items-center justify-between"
               >
                 <div className="flex items-center">
-                  <FileText size={18} className="mr-3 text-[#10b981]" />
-                  <span className="tracking-wide text-sm">{ingestionState === 'INGESTING' ? 'Processing PDF...' : 'Upload APQP Standard'}</span>
+                  <FileText size={18} className={ingestionState === 'INGESTING' ? 'text-gray-400 mr-3' : 'text-[#10b981] mr-3'} />
+                  <span className="tracking-widest text-xs uppercase">
+                    {ingestionState === 'INGESTING' ? 'Processing PDF...' : ingestionState === 'COMPLETE' ? 'Ingestion Complete' : 'Upload APQP Standard'}
+                  </span>
                 </div>
-                <div className="w-6 h-6 flex items-center justify-center">
-                  {ingestionState === 'INGESTING' && <ScanLine size={18} className="animate-pulse text-[#10b981]" />}
+                <div className="w-6 h-6 flex items-center justify-center shrink-0">
+                  {ingestionState === 'INGESTING' && <ScanLine size={18} className="animate-pulse text-black" />}
                   {ingestionState === 'COMPLETE' && <CheckCircle size={18} className="text-[#10b981]" />}
                 </div>
               </button>
             </div>
           </div>
 
-          <div className="flex-1 p-6 pt-2 flex flex-col min-h-0">
-            <div className="bg-gray-50 rounded-lg p-4 border border-gray-200 flex flex-col h-full min-h-0">
-              <h3 className="shrink-0 text-[10px] font-extrabold text-gray-400 mb-3 uppercase tracking-widest border-b border-gray-200 pb-2 flex justify-between">
-                <span>Vector Database (Qdrant)</span>
-                <span className="text-[#047857] bg-green-100 px-1.5 rounded">{vectorDb.length} Indexes</span>
+          <div className="flex-1 p-6 flex flex-col min-h-0 bg-white">
+            <div className="flex flex-col h-full min-h-0">
+              <h3 className="shrink-0 text-[10px] font-extrabold text-gray-400 mb-4 uppercase tracking-widest border-b-2 border-gray-100 pb-2 flex justify-between items-center">
+                <span className="flex items-center"><Lock size={10} className="mr-1"/> Vector Database (Qdrant)</span>
+                <span className="text-[#047857] bg-green-50 border border-green-100 px-2 py-0.5 rounded shadow-sm">{vectorDb.length} Indexes</span>
               </h3>
               <div ref={vectorListRef} className="flex-1 overflow-y-auto space-y-3 pr-2 scroll-smooth">
                 {vectorDb.map((v, i) => (
-                  <div key={i} className="bg-white p-3 border border-gray-200 rounded shadow-sm hover:border-[#047857] transition-colors">
-                    <div className="flex justify-between items-center mb-2">
-                      <span className="text-[9px] font-mono font-bold bg-[#047857] text-white px-1.5 py-0.5 rounded shadow-sm">{v.id}</span>
-                      <span className="text-[9px] text-gray-400 font-mono font-bold bg-gray-100 px-1.5 py-0.5 rounded">{v.dimensions}D</span>
+                  <div key={i} className="bg-white p-3.5 border-2 border-gray-100 rounded-lg shadow-sm hover:border-[#047857] transition-colors group">
+                    <div className="flex justify-between items-center mb-2.5">
+                      <span className="text-[9px] font-mono font-bold bg-[#047857] text-white px-2 py-0.5 rounded shadow-sm">{v.id}</span>
+                      <span className="text-[9px] text-gray-400 font-mono font-bold bg-gray-100 px-1.5 py-0.5 rounded border border-gray-200 group-hover:bg-green-50 group-hover:text-green-700 transition-colors">{v.dimensions}D</span>
                     </div>
-                    <p className="text-xs font-bold text-black truncate mb-1" title={v.doc}>{v.doc}</p>
-                    <p className="text-[10px] text-gray-500 truncate mb-2 font-medium">Chunk: <span className="text-gray-700">{v.chunk}</span></p>
-                    <p className="text-[9px] font-mono text-green-800 bg-green-50 p-1.5 rounded border border-green-100 truncate">{v.vector}</p>
+                    <p className="text-xs font-extrabold text-black truncate mb-1.5" title={v.doc}>{v.doc}</p>
+                    <p className="text-[10px] text-gray-500 truncate mb-2.5 font-bold uppercase tracking-wide">Chunk: <span className="text-black">{v.chunk}</span></p>
+                    <p className="text-[9px] font-mono text-green-800 bg-green-50 p-2 rounded border border-green-100 truncate shadow-inner">{v.vector}</p>
                   </div>
                 ))}
               </div>
@@ -238,107 +248,103 @@ export default function AegisCADLayerTwo() {
         </div>
 
         <div className="col-span-6 bg-[#f8fafc] flex flex-col relative border-r-2 border-gray-200 min-h-0 z-10">
-          <div className="shrink-0 bg-white border-b-2 border-gray-200 py-4 px-6 flex justify-between items-center shadow-sm z-20">
-            <div className="flex items-center space-x-3">
-              <ServerCog size={20} className="text-[#047857]" />
+          <div className="shrink-0 h-20 bg-white border-b-2 border-gray-200 px-8 flex justify-between items-center shadow-sm z-30">
+            <div className="flex items-center space-x-4">
+              <div className="bg-gray-100 p-2 rounded-lg border border-gray-200">
+                <ServerCog size={24} className="text-[#047857]" />
+              </div>
               <div>
-                <h2 className="text-sm font-extrabold text-black uppercase tracking-widest leading-tight">Pipeline Matrix</h2>
-                <p className="text-[10px] text-gray-500 font-bold tracking-wider uppercase">DFA Node Execution</p>
+                <h2 className="text-sm font-black text-black uppercase tracking-widest leading-tight">Pipeline Matrix</h2>
+                <p className="text-[10px] text-gray-500 font-bold tracking-wider uppercase">LangGraph DFA Execution</p>
               </div>
             </div>
             <button 
               onClick={simulateIncomingCadPayload}
               disabled={pipelineState.activeNode !== 'IDLE' && pipelineState.activeNode !== 'COMPLETE'}
-              className="bg-[#047857] hover:bg-[#065f46] disabled:bg-gray-400 disabled:text-gray-200 text-white px-5 py-2.5 text-xs font-extrabold border border-transparent rounded shadow-md flex items-center transition-all disabled:shadow-none"
+              className="h-12 bg-[#047857] hover:bg-[#065f46] disabled:bg-gray-300 disabled:text-gray-500 disabled:border-gray-300 disabled:shadow-none text-white px-6 text-xs font-extrabold border-2 border-[#065f46] rounded-lg shadow-[0_4px_14px_rgba(4,120,87,0.3)] flex items-center transition-all uppercase tracking-widest"
             >
-              <Zap size={16} className="mr-2" />
-              SIMULATE LAYER 1 CAD INPUT
+              {pipelineState.activeNode !== 'IDLE' && pipelineState.activeNode !== 'COMPLETE' ? (
+                <Activity size={18} className="mr-2 animate-pulse" />
+              ) : (
+                <Zap size={18} className="mr-2" />
+              )}
+              {pipelineState.activeNode !== 'IDLE' && pipelineState.activeNode !== 'COMPLETE' ? 'EXECUTING PIPELINE...' : 'SIMULATE CAD INPUT'}
             </button>
           </div>
 
-          <div className="flex-1 flex flex-col items-center relative overflow-y-auto p-8">
-            <svg className="absolute inset-0 w-full h-full pointer-events-none opacity-20" xmlns="http://www.w3.org/2000/svg">
+          <div className="flex-1 flex flex-col items-center relative overflow-y-auto p-10">
+            <svg className="absolute inset-0 w-full h-full pointer-events-none opacity-[0.15]" xmlns="http://www.w3.org/2000/svg">
               <defs>
                 <pattern id="grid" width="40" height="40" patternUnits="userSpaceOnUse">
-                  <path d="M 40 0 L 0 0 0 40" fill="none" stroke="#047857" strokeWidth="0.5"/>
+                  <path d="M 40 0 L 0 0 0 40" fill="none" stroke="#047857" strokeWidth="1"/>
                 </pattern>
               </defs>
               <rect width="100%" height="100%" fill="url(#grid)" />
             </svg>
 
-            <div className="w-full max-w-2xl relative z-10 my-auto py-8">
-              <div className="text-center mb-10 shrink-0 bg-white/90 backdrop-blur py-4 rounded-xl border border-gray-200 shadow-sm inline-block px-10 mx-auto w-full">
-                <h2 className="text-xl font-extrabold tracking-[0.2em] text-black">LANGGRAPH ORCHESTRATOR</h2>
-                <p className="text-xs font-mono font-bold text-[#047857] uppercase tracking-widest mt-1">Definite Finite Automaton Routing</p>
-              </div>
-
-              <div className="flex flex-col space-y-8 relative">
-                <div className="absolute left-[3.25rem] top-12 bottom-12 w-1.5 bg-gray-200 z-0 rounded-full overflow-hidden shadow-inner">
-                   <div className="w-full bg-[#10b981] transition-all duration-700 ease-in-out shadow-[0_0_10px_#10b981]" style={{ height: getProgressHeight() }} />
+            <div className="w-full max-w-3xl relative z-10 py-4">
+              <div className="flex flex-col space-y-10 relative">
+                
+                <div className="absolute left-[3.25rem] top-12 bottom-12 w-2 bg-gray-200 z-0 rounded-full shadow-inner">
+                   <div className="w-full bg-[#10b981] transition-all duration-[800ms] ease-in-out shadow-[0_0_15px_#10b981] rounded-full relative" style={{ height: getProgressHeight() }}>
+                     <div className="absolute bottom-0 left-1/2 -translate-x-1/2 translate-y-1/2 w-4 h-4 bg-white border-4 border-[#10b981] rounded-full shadow-[0_0_10px_#10b981]"></div>
+                   </div>
                 </div>
                 
-                <div className={`relative z-10 flex items-center p-5 border-2 rounded-xl transition-all duration-500 bg-white ${getNodeStyle('PLANNER')}`}>
-                  <div className="w-14 h-14 rounded-full border-2 border-inherit flex items-center justify-center shadow-md shrink-0 mr-6 bg-white z-20">
-                    <Search size={22} className="text-inherit" />
+                {[
+                  { id: 'PLANNER', title: '1. Planner Agent', desc: 'Parses B-Rep topology & formulates semantic constraints query.', icon: Search },
+                  { id: 'RETRIEVER', title: '2. Retriever Agent', desc: 'Executes High-Dimensional similarity search in Vector DB.', icon: Database },
+                  { id: 'VERIFIER', title: '3. Deterministic Verifier', desc: 'Cross-references text rules with deterministic OpenCASCADE measurements.', icon: GitMerge },
+                  { id: 'LLM_SYNTHESIS', title: '4. Llama-3 70B Synthesis', desc: 'Generates standardized JSON corrective action payload. Temp: 0.0.', icon: Cpu },
+                ].map((node) => (
+                  <div key={node.id} className={`relative z-10 flex items-center p-6 border-2 rounded-xl transition-all duration-500 ${getNodeClasses(node.id)}`}>
+                    <div className={`w-14 h-14 rounded-xl border-2 flex items-center justify-center shadow-sm shrink-0 mr-6 z-20 transition-colors duration-500 ${getIconClasses(node.id)}`}>
+                      <node.icon size={24} className="text-inherit" />
+                    </div>
+                    <div className="flex-1">
+                      <h3 className={`text-sm font-black uppercase tracking-[0.15em] mb-1.5 ${isNodeActive(node.id) ? 'text-[#047857]' : 'text-black'}`}>{node.title}</h3>
+                      <p className="text-[11px] text-gray-500 font-bold leading-relaxed tracking-wide">{node.desc}</p>
+                    </div>
+                    
+                    {isNodeActive(node.id) && pipelineState.stepData && (
+                      <div className="absolute -right-4 top-1/2 -translate-y-1/2 translate-x-full w-64 bg-black border border-gray-700 rounded-lg shadow-2xl p-4 animate-in fade-in slide-in-from-left-4 z-30">
+                        <div className="flex items-center mb-2">
+                          <Activity size={12} className="text-green-400 mr-2 animate-pulse" />
+                          <span className="text-[9px] font-mono font-bold text-gray-400 uppercase tracking-widest">Active Tensor Log</span>
+                        </div>
+                        <p className="text-[10px] font-mono text-green-300 leading-tight">
+                          {pipelineState.stepData.log}
+                        </p>
+                      </div>
+                    )}
                   </div>
-                  <div>
-                    <h3 className="text-[13px] font-extrabold uppercase tracking-widest text-black">1. Planner Agent</h3>
-                    <p className="text-[11px] text-gray-500 mt-1 font-medium leading-relaxed">Parses B-Rep topology and formulates semantic constraints query based on tensor attributes.</p>
-                  </div>
-                </div>
-
-                <div className={`relative z-10 flex items-center p-5 border-2 rounded-xl transition-all duration-500 bg-white ${getNodeStyle('RETRIEVER')}`}>
-                  <div className="w-14 h-14 rounded-full border-2 border-inherit flex items-center justify-center shadow-md shrink-0 mr-6 bg-white z-20">
-                    <Database size={22} className="text-inherit" />
-                  </div>
-                  <div>
-                    <h3 className="text-[13px] font-extrabold uppercase tracking-widest text-black">2. Retriever Agent</h3>
-                    <p className="text-[11px] text-gray-500 mt-1 font-medium leading-relaxed">Executes High-Dimensional similarity search in Pinecone/Qdrant to locate domain rules.</p>
-                  </div>
-                </div>
-
-                <div className={`relative z-10 flex items-center p-5 border-2 rounded-xl transition-all duration-500 bg-white ${getNodeStyle('VERIFIER')}`}>
-                  <div className="w-14 h-14 rounded-full border-2 border-inherit flex items-center justify-center shadow-md shrink-0 mr-6 bg-white z-20">
-                    <GitMerge size={22} className="text-inherit" />
-                  </div>
-                  <div>
-                    <h3 className="text-[13px] font-extrabold uppercase tracking-widest text-black">3. Deterministic Verifier</h3>
-                    <p className="text-[11px] text-gray-500 mt-1 font-medium leading-relaxed">Cross-references text rules with deterministic OpenCASCADE measurements to prevent hallucinations.</p>
-                  </div>
-                </div>
-
-                <div className={`relative z-10 flex items-center p-5 border-2 rounded-xl transition-all duration-500 bg-white ${getNodeStyle('LLM_SYNTHESIS')}`}>
-                  <div className="w-14 h-14 rounded-full border-2 border-inherit flex items-center justify-center shadow-md shrink-0 mr-6 bg-white z-20">
-                    <Cpu size={22} className="text-inherit" />
-                  </div>
-                  <div>
-                    <h3 className="text-[13px] font-extrabold uppercase tracking-widest text-black">4. Llama-3 70B Synthesis</h3>
-                    <p className="text-[11px] text-gray-500 mt-1 font-medium leading-relaxed">Generates standardized JSON corrective action payload for CAD overlay. Temperature locked at 0.0.</p>
-                  </div>
-                </div>
+                ))}
               </div>
             </div>
           </div>
         </div>
 
-        <div className="col-span-3 bg-white flex flex-col z-20 shadow-[-10px_0_15px_-3px_rgba(0,0,0,0.1)] min-h-0">
-          <div className="shrink-0 p-6 border-b-2 border-gray-100 bg-gray-50">
-            <h2 className="text-sm font-extrabold text-black mb-1 uppercase tracking-widest flex items-center">
-              <FileOutput size={16} className="mr-2 text-[#047857]" /> Agentic Output
-            </h2>
-            <p className="text-[11px] font-bold text-gray-500 uppercase tracking-wider">Synthesized Payload</p>
+        <div className="col-span-3 bg-white flex flex-col z-20 shadow-2xl min-h-0">
+          <div className="shrink-0 p-6 border-b-2 border-gray-200 bg-gray-50 h-20 flex items-center">
+            <div>
+              <h2 className="text-sm font-extrabold text-black mb-1 uppercase tracking-widest flex items-center">
+                <FileOutput size={16} className="mr-2 text-[#047857]" /> Agentic Output
+              </h2>
+              <p className="text-[10px] font-bold text-gray-500 uppercase tracking-wider">Synthesized Correction Payload</p>
+            </div>
           </div>
 
           <div className="flex-1 overflow-y-auto p-6 bg-white flex flex-col min-h-0">
             {!pipelineState.finalResult ? (
-              <div className="flex-1 flex items-center justify-center">
-                 <p className="text-xs font-bold text-gray-300 italic text-center px-4 uppercase tracking-widest border-2 border-dashed border-gray-200 p-6 rounded-lg">Awaiting LangGraph execution...</p>
+              <div className="flex-1 flex flex-col items-center justify-center border-2 border-dashed border-gray-200 rounded-xl p-6 bg-gray-50">
+                 <ShieldCheck size={40} className="text-gray-300 mb-4" />
+                 <p className="text-xs font-black text-gray-400 uppercase tracking-widest text-center">Awaiting Validation</p>
               </div>
             ) : (
               <div className="space-y-4 animate-in fade-in duration-500">
                 <div className={`p-5 border-2 rounded-xl shadow-sm ${pipelineState.finalResult.compliant ? 'border-green-500 bg-green-50' : 'border-red-500 bg-red-50'}`}>
                   <div className="flex items-center justify-between mb-4 border-b-2 pb-3 border-inherit">
-                    <span className={`text-xs font-extrabold uppercase tracking-[0.2em] flex items-center ${pipelineState.finalResult.compliant ? 'text-green-700' : 'text-red-700'}`}>
+                    <span className={`text-xs font-black uppercase tracking-[0.2em] flex items-center ${pipelineState.finalResult.compliant ? 'text-green-700' : 'text-red-700'}`}>
                       {pipelineState.finalResult.compliant ? <CheckCircle size={18} className="mr-2"/> : <AlertTriangle size={18} className="mr-2"/>}
                       {pipelineState.finalResult.action}
                     </span>
@@ -346,35 +352,36 @@ export default function AegisCADLayerTwo() {
                   
                   <div className="space-y-3 text-xs">
                     <div className="bg-white p-3 rounded-lg border border-inherit shadow-sm">
-                      <span className="block text-[9px] uppercase tracking-widest text-gray-400 font-extrabold mb-1.5">Target Mesh Entity</span>
+                      <span className="block text-[9px] uppercase tracking-widest text-gray-400 font-black mb-1.5">Target Mesh Entity</span>
                       <span className="font-mono font-bold text-black text-sm">{pipelineState.finalResult.generatedPayload.faceId}</span>
                     </div>
 
                     <div className="grid grid-cols-2 gap-3">
                       <div className="bg-white p-3 rounded-lg border border-inherit shadow-sm">
-                         <span className="block text-[9px] uppercase tracking-widest text-gray-400 font-extrabold mb-1.5">Constraint Rule</span>
+                         <span className="block text-[9px] uppercase tracking-widest text-gray-400 font-black mb-1.5">Constraint Rule</span>
                          <span className="font-mono font-bold text-[#047857]">{pipelineState.finalResult.generatedPayload.rule}</span>
                       </div>
                       <div className="bg-white p-3 rounded-lg border border-inherit shadow-sm">
-                         <span className="block text-[9px] uppercase tracking-widest text-gray-400 font-extrabold mb-1.5">Severity</span>
+                         <span className="block text-[9px] uppercase tracking-widest text-gray-400 font-black mb-1.5">Severity</span>
                          <span className={`font-mono font-bold ${pipelineState.finalResult.compliant ? 'text-green-600' : 'text-red-600'}`}>{pipelineState.finalResult.generatedPayload.severity}</span>
                       </div>
                     </div>
 
                     <div className="grid grid-cols-2 gap-3">
                       <div className="bg-white p-3 rounded-lg border border-inherit shadow-sm">
-                         <span className="block text-[9px] uppercase tracking-widest text-gray-400 font-extrabold mb-1.5">Expected Math</span>
+                         <span className="block text-[9px] uppercase tracking-widest text-gray-400 font-black mb-1.5">Expected Math</span>
                          <span className="font-mono font-bold text-black">{pipelineState.finalResult.generatedPayload.expected}</span>
                       </div>
                       <div className="bg-white p-3 rounded-lg border border-inherit shadow-sm">
-                         <span className="block text-[9px] uppercase tracking-widest text-gray-400 font-extrabold mb-1.5">Extracted Math</span>
+                         <span className="block text-[9px] uppercase tracking-widest text-gray-400 font-black mb-1.5">Extracted Math</span>
                          <span className={`font-mono font-bold ${pipelineState.finalResult.compliant ? 'text-green-600' : 'text-red-600'}`}>{pipelineState.finalResult.generatedPayload.actual}</span>
                       </div>
                     </div>
 
-                    <div className="bg-white p-4 rounded-lg border border-inherit shadow-sm mt-3">
-                      <span className="block text-[9px] uppercase tracking-widest text-gray-400 font-extrabold mb-2">LLM Recommendation</span>
-                      <span className="font-bold text-black leading-relaxed block text-[11px]">{pipelineState.finalResult.generatedPayload.recommendation}</span>
+                    <div className="bg-white p-4 rounded-lg border border-inherit shadow-sm mt-3 relative overflow-hidden">
+                      <div className="absolute left-0 top-0 bottom-0 w-1 bg-gray-200"></div>
+                      <span className="block text-[9px] uppercase tracking-widest text-gray-400 font-black mb-2 pl-2">LLM Recommendation</span>
+                      <span className="font-bold text-black leading-relaxed block text-[11px] pl-2">{pipelineState.finalResult.generatedPayload.recommendation}</span>
                     </div>
                   </div>
                 </div>
@@ -382,13 +389,13 @@ export default function AegisCADLayerTwo() {
             )}
           </div>
 
-          <div className="shrink-0 h-64 bg-[#0a0a0a] flex flex-col border-t-4 border-black">
-            <div className="shrink-0 px-4 py-2.5 border-b border-gray-800 flex justify-between items-center bg-black/50">
+          <div className="shrink-0 h-[30%] min-h-[200px] bg-[#0a0a0a] flex flex-col border-t-4 border-black">
+            <div className="shrink-0 px-5 py-3 border-b border-gray-800 bg-black/80">
               <h2 className="text-[10px] font-bold text-[#047857] uppercase tracking-widest flex items-center">
                 <Terminal size={14} className="mr-2" /> Inference Telemetry
               </h2>
             </div>
-            <div ref={terminalRef} className="flex-1 overflow-y-auto p-4 font-mono text-[10px] space-y-2 leading-relaxed">
+            <div ref={terminalRef} className="flex-1 overflow-y-auto p-5 font-mono text-[10px] space-y-2.5 leading-relaxed">
               {systemLogs.map((log, idx) => (
                 <div key={idx} className="flex">
                   <span className="text-gray-600 mr-3 shrink-0">[{log.ts}]</span>
