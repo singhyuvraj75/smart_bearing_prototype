@@ -1,159 +1,180 @@
-import React from "react";
-import { useNavigate } from "react-router-dom";
-import {
-    Activity,
-    Database,
-    Network,
-    Truck,
-    ShieldCheck,
-    TrendingUp,
-    LayoutDashboard,
-    ChevronRight,
-    Zap,
-    ArrowRight,
-} from "lucide-react";
+import React, { useState } from 'react';
+import { 
+  Terminal, 
+  Database, 
+  Cpu, 
+  Target, 
+  Activity, 
+  ShieldCheck, 
+  LayoutDashboard,
+  ArrowRight,
+  ChevronLeft,
+  Zap
+} from 'lucide-react';
 
-export default function Dashboard() {
-    const navigate = useNavigate();
+// --- DATA: Architectural Layers ---
+const layers = [
+  {
+    id: 'L1',
+    title: 'Client & Extraction Layer',
+    description: 'Intercepts real-time CAD modifications and extracts precise B-Rep geometry via OpenCASCADE.',
+    icon: Terminal,
+    iconColor: 'text-[#a78bfa]' // Purple
+  },
+  {
+    id: 'L2',
+    title: 'API & Transport Layer',
+    description: 'Enables ultra-low-latency bidirectional communication using gRPC/Protobufs over HTTP/2.',
+    icon: Database,
+    iconColor: 'text-[#60a5fa]' // Blue
+  },
+  {
+    id: 'L3',
+    title: 'Geometric Deep Learning',
+    description: 'Converts CAD geometry into Attributed Adjacency Graphs (AAG) for PyTorch Geometric convolution.',
+    icon: Cpu,
+    iconColor: 'text-[#22d3ee]' // Cyan
+  },
+  {
+    id: 'L4',
+    title: 'Knowledge & Data Core',
+    description: 'LlamaParse extracts structured manufacturing rules from PDFs, stored in Qdrant vector space.',
+    icon: Target,
+    iconColor: 'text-[#4ade80]' // Green
+  },
+  {
+    id: 'L5',
+    title: 'Cognitive & Reasoning Core',
+    description: 'LangGraph coordinates the multi-step reasoning workflow, powered by the Llama-3 inference engine.',
+    icon: Activity,
+    iconColor: 'text-[#facc15]' // Yellow
+  },
+  {
+    id: 'L6',
+    title: 'Validation & Compliance',
+    description: 'Synthesizes DFA-RAG logic against deterministic OCCT API scripts, ensuring mathematical accuracy.',
+    icon: ShieldCheck,
+    iconColor: 'text-[#f87171]' // Red
+  }
+];
 
-    const layers = [
-        {
-            id: "L1",
-            title: "Edge Intelligence",
-            route: "/layer1",
-            description:
-                "Capture raw telemetry via Piezo/MEMS sensors and perform embedded FFT processing for early micro-crack detection.",
-            icon: Activity,
-            color: "text-purple-400",
-        },
-        {
-            id: "L2",
-            title: "Predictive Asset Core",
-            route: "/layer2",
-            description:
-                "Physics-Informed Digital Twins and Bayesian Particle Filters for real-time Remaining Useful Life (RUL) estimation.",
-            icon: Database,
-            color: "text-blue-400",
-        },
-        {
-            id: "L3",
-            title: "Knowledge & Reasoning",
-            route: "/layer3",
-            description:
-                "GraphRAG engine for deterministic reasoning across failure modes, ERP logs, service records, and warranty rules.",
-            icon: Network,
-            color: "text-teal-400",
-        },
-        {
-            id: "L4",
-            title: "Commerce Orchestration",
-            route: "/layer4",
-            description:
-                "Autonomous order capture and combinatorial optimization for dynamic reordering and dealer channel allocation.",
-            icon: Truck,
-            color: "text-emerald-400",
-        },
-        {
-            id: "L5",
-            title: "Federated Intelligence",
-            route: "/layer5",
-            description:
-                "Privacy-preserving local training frameworks with zero-knowledge (zk-SNARK) validation for global AI scaling.",
-            icon: ShieldCheck,
-            color: "text-amber-400",
-        },
-        {
-            id: "L6",
-            title: "Revenue Monetization",
-            route: "/layer6",
-            description:
-                "Transition to Outcome-as-a-Service, subscription billing APIs, and physical ESG carbon emission quantification.",
-            icon: TrendingUp,
-            color: "text-rose-400",
-        },
-    ];
+const omniLayer = {
+  id: 'L7',
+  title: 'Master CAD Environment',
+  description: 'The Master Command Center. Aggregate all layers into a single 3D interactive viewport with real-time semantic highlighting.',
+  icon: LayoutDashboard,
+  iconColor: 'text-[#f95d24]' // Orange
+};
 
+export default function AegisCADDashboard() {
+  const [activeLayer, setActiveLayer] = useState(null);
+
+  // --- Active Layer Placeholder View ---
+  if (activeLayer) {
     return (
-        <div className="min-h-screen bg-[#090e17] flex flex-col items-center justify-center py-16 px-4 font-sans relative overflow-hidden text-slate-300">
-
-            {/* Background Glow */}
-            <div className="absolute top-[-20%] left-1/2 -translate-x-1/2 w-[800px] h-[600px] bg-blue-900/30 rounded-full blur-[120px] pointer-events-none"></div>
-
-            {/* Header */}
-            <div className="text-center z-10 max-w-3xl mx-auto mb-14">
-                <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full border border-blue-500/30 bg-blue-500/10 text-blue-400 text-[10px] font-bold uppercase tracking-widest mb-6">
-                    <Zap className="w-3 h-3" /> Predictive Aftermarket Platform
-                </div>
-
-                <h1 className="text-5xl md:text-6xl font-black text-white tracking-tight mb-5">
-                    Bearing<span className="text-blue-500">IQ</span>
-                </h1>
-
-                <p className="text-slate-400 text-base md:text-lg leading-relaxed">
-                    A Predictive Sales & Autonomous Commerce Platform for
-                    <strong className="text-slate-200"> Industrial Bearings</strong>.
-                    <br />
-                    Select a layer to begin the autonomous aftermarket lifecycle.
-                </p>
-            </div>
-
-            {/* Layers Grid */}
-            <div className="z-10 grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5 max-w-6xl w-full">
-                {layers.map((layer) => (
-                    <div
-                        key={layer.id}
-                        onClick={() => navigate(layer.route)}
-                        className="group cursor-pointer bg-[#0f172a]/60 backdrop-blur-md border border-slate-800 hover:border-slate-600 hover:bg-[#1e293b]/60 transition-all duration-300 rounded-3xl p-7 flex flex-col"
-                    >
-                        <div className="w-12 h-12 rounded-xl bg-slate-800/80 border border-slate-700 flex items-center justify-center mb-6 group-hover:scale-110 transition-transform">
-                            <layer.icon className={`w-6 h-6 ${layer.color}`} />
-                        </div>
-
-                        <h2 className="text-xl font-bold text-slate-100 mb-3 tracking-tight">
-                            {layer.id}: {layer.title}
-                        </h2>
-
-                        <p className="text-sm text-slate-400 leading-relaxed flex-1">
-                            {layer.description}
-                        </p>
-
-                        <div className="mt-8 text-[10px] font-black text-slate-500 uppercase tracking-widest flex items-center gap-1.5 group-hover:text-blue-400">
-                            Launch Layer <ChevronRight className="w-3 h-3" />
-                        </div>
-                    </div>
-                ))}
-            </div>
-
-            {/* Layer 7 Banner */}
-            <div className="z-10 max-w-6xl w-full mt-5">
-                <div
-                    onClick={() => navigate("/layer7")}
-                    className="group cursor-pointer bg-gradient-to-r from-[#0f172a]/80 to-[#1e293b]/40 backdrop-blur-md border border-slate-800 hover:border-slate-600 transition-all duration-300 rounded-3xl p-6 md:p-8 flex flex-col md:flex-row items-start md:items-center justify-between gap-6 relative overflow-hidden"
-                >
-                    <div className="absolute left-0 top-0 bottom-0 w-1 bg-blue-600/50"></div>
-
-                    <div className="flex items-start md:items-center gap-6">
-                        <div className="w-14 h-14 rounded-2xl bg-orange-500/10 border border-orange-500/20 flex items-center justify-center text-orange-400">
-                            <LayoutDashboard className="w-7 h-7" />
-                        </div>
-
-                        <div>
-                            <h2 className="text-2xl font-bold text-slate-100 mb-2">
-                                L7: Interface Layer (Omni-Dashboard)
-                            </h2>
-                            <p className="text-sm text-slate-400 max-w-2xl">
-                                The Master Command Center. Aggregate fleet demand heatmaps,
-                                dynamic revenue forecasting, and dealer execution logs.
-                            </p>
-                        </div>
-                    </div>
-
-                    <div className="w-14 h-14 rounded-full bg-[#ff5a1f] hover:bg-[#ff6a33] text-white flex items-center justify-center transition-all">
-                        <ArrowRight className="w-6 h-6" />
-                    </div>
-                </div>
-            </div>
-
+      <div className="min-h-screen bg-[#0b132b] text-slate-200 p-8 font-sans">
+        <div className="max-w-6xl mx-auto">
+          <button 
+            onClick={() => setActiveLayer(null)}
+            className="flex items-center space-x-2 text-slate-400 hover:text-white transition-colors mb-8 group"
+          >
+            <ChevronLeft className="w-5 h-5 group-hover:-translate-x-1 transition-transform" />
+            <span className="font-semibold tracking-wide text-sm uppercase">Return to Dashboard</span>
+          </button>
+          
+          <div className="flex flex-col items-center justify-center h-[60vh] border border-dashed border-[#2a3655] rounded-2xl bg-[#16203a]/50">
+            <activeLayer.icon className={`w-16 h-16 ${activeLayer.iconColor} mb-6 opacity-80`} />
+            <h2 className="text-3xl font-light tracking-tight text-white mb-3">
+              <span className="font-bold">{activeLayer.id}:</span> {activeLayer.title}
+            </h2>
+            <p className="text-slate-400 max-w-lg text-center leading-relaxed">
+              Module code for this layer goes here. Waiting for your command to build out this component.
+            </p>
+          </div>
         </div>
+      </div>
     );
+  }
+
+  // --- Main Dashboard Render ---
+  return (
+    <div className="min-h-screen bg-gradient-to-b from-[#0b132b] to-[#040814] text-slate-300 font-sans relative overflow-hidden">
+      
+      <div className="max-w-6xl mx-auto px-6 py-16 relative z-10">
+        
+        {/* Header Section */}
+        <header className="mb-16 text-center flex flex-col items-center">
+          <div className="inline-flex items-center space-x-2 px-3 py-1 rounded-full bg-[#1e293b]/50 border border-[#38bdf8]/30 text-[#38bdf8] text-[10px] font-bold tracking-widest uppercase mb-8">
+            <Zap className="w-3 h-3 text-[#f95d24]" fill="#f95d24" />
+            <span>Autonomous Engineering Platform</span>
+          </div>
+          
+          <h1 className="text-5xl md:text-6xl tracking-tight mb-4">
+            <span className="font-bold text-white">Aegis</span><span className="font-bold text-[#38bdf8]">CAD</span>
+          </h1>
+          
+          <p className="text-lg md:text-xl text-slate-300 max-w-3xl mx-auto leading-relaxed font-light mb-1">
+            An Agentic Geometric Intelligence System for <span className="font-semibold text-white">Early-Stage CAD Validation</span>.
+          </p>
+          <p className="text-md text-slate-400 font-light">
+            Select a layer to begin the autonomous design lifecycle.
+          </p>
+        </header>
+
+        {/* L1-L6 Grid */}
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 mb-6">
+          {layers.map((layer) => (
+            <div 
+              key={layer.id}
+              onClick={() => setActiveLayer(layer)}
+              className="group bg-[#16203a] rounded-2xl p-6 border border-[#2a3655] hover:border-[#4b5e8c] transition-all duration-300 cursor-pointer flex flex-col h-full"
+            >
+              <div className="w-10 h-10 rounded-lg bg-[#1e2a4a] border border-[#2a3655] flex items-center justify-center mb-5 group-hover:bg-[#233257] transition-colors">
+                <layer.icon className={`w-5 h-5 ${layer.iconColor}`} strokeWidth={2} />
+              </div>
+
+              <div className="flex-grow">
+                <h3 className="text-[17px] font-bold text-white mb-3 tracking-wide">
+                  {layer.id}: {layer.title}
+                </h3>
+                <p className="text-sm text-slate-400 leading-relaxed">
+                  {layer.description}
+                </p>
+              </div>
+
+              <div className="flex items-center text-[11px] font-bold text-slate-500 group-hover:text-slate-300 transition-colors mt-8 uppercase tracking-widest">
+                <span>Launch Layer</span>
+                <ArrowRight className="w-3.5 h-3.5 ml-2 transition-transform group-hover:translate-x-1" />
+              </div>
+            </div>
+          ))}
+        </div>
+
+        {/* L7: Omni-Dashboard (Full Width) */}
+        <div 
+          onClick={() => setActiveLayer(omniLayer)}
+          className="group bg-[#16203a] rounded-2xl p-6 md:px-8 border border-[#2a3655] hover:border-[#4b5e8c] transition-all duration-300 cursor-pointer flex flex-col md:flex-row items-start md:items-center justify-between"
+        >
+          <div className="flex items-start md:items-center flex-col md:flex-row mb-6 md:mb-0">
+            <div className="w-10 h-10 rounded-lg bg-[#1e2a4a] border border-[#2a3655] flex items-center justify-center mb-4 md:mb-0 md:mr-6 group-hover:bg-[#233257] transition-colors shrink-0">
+              <omniLayer.icon className={`w-5 h-5 ${omniLayer.iconColor}`} strokeWidth={2} />
+            </div>
+            <div>
+              <h3 className="text-[19px] font-bold text-white mb-2 tracking-wide">
+                {omniLayer.id}: {omniLayer.title}
+              </h3>
+              <p className="text-sm text-slate-400 leading-relaxed max-w-3xl">
+                {omniLayer.description}
+              </p>
+            </div>
+          </div>
+          
+          <div className="w-12 h-12 rounded-full bg-[#f95d24] flex items-center justify-center text-white shrink-0 shadow-lg shadow-[#f95d24]/20 group-hover:scale-105 transition-transform self-end md:self-auto">
+            <ArrowRight className="w-5 h-5" strokeWidth={2.5} />
+          </div>
+        </div>
+
+      </div>
+    </div>
+  );
 }
