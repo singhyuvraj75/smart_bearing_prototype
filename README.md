@@ -1,16 +1,93 @@
-# React + Vite
+# ⚙️ Smart Bearing Prototype Dashboard
 
-This template provides a minimal setup to get React working in Vite with HMR and some ESLint rules.
+A modern **React-based dashboard** for real-time monitoring and visualization of smart bearing data, designed to simulate **predictive maintenance systems used in Industry 4.0**.
 
-Currently, two official plugins are available:
+🔗 **Live Demo:** https://smart-bearing-prototype.onrender.com
 
-- [@vitejs/plugin-react](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react) uses [Babel](https://babeljs.io/) (or [oxc](https://oxc.rs) when used in [rolldown-vite](https://vite.dev/guide/rolldown)) for Fast Refresh
-- [@vitejs/plugin-react-swc](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react-swc) uses [SWC](https://swc.rs/) for Fast Refresh
+---
 
-## React Compiler
+## 🚀 Project Overview
 
-The React Compiler is not enabled on this template because of its impact on dev & build performances. To add it, see [this documentation](https://react.dev/learn/react-compiler/installation).
+Smart bearings are an advanced evolution of traditional bearings equipped with sensors that monitor parameters like temperature, vibration, and load in real-time. :contentReference[oaicite:0]{index=0}  
 
-## Expanding the ESLint configuration
+This project demonstrates a **frontend prototype dashboard** that visualizes such sensor data to:
+- Track machine health
+- Detect anomalies early
+- Enable predictive maintenance
 
-If you are developing a production application, we recommend using TypeScript with type-aware lint rules enabled. Check out the [TS template](https://github.com/vitejs/vite/tree/main/packages/create-vite/template-react-ts) for information on how to integrate TypeScript and [`typescript-eslint`](https://typescript-eslint.io) in your project.
+---
+
+## 🧠 Key Features
+
+### 📊 Real-Time Monitoring UI
+- Dynamic dashboard interface for bearing health metrics  
+- Visual representation of sensor readings (temperature, vibration, load)
+
+### 📈 Data Visualization
+- Interactive charts and graphs  
+- Trend analysis for predictive insights  
+
+### ⚠️ Condition Monitoring
+- Simulated alerts for abnormal conditions  
+- Helps identify potential failures early  
+
+### 🎯 Industrial Use Case Simulation
+- Mimics real-world **IoT-based condition monitoring systems**  
+- Useful for manufacturing, automotive, and heavy machinery  
+
+---
+
+## 🏗️ Tech Stack
+
+- **Frontend:** React.js (Vite)  
+- **Styling:** Tailwind CSS  
+- **Build Tool:** Vite  
+- **Linting:** ESLint  
+
+---
+
+## 📂 Project Structure
+smart_bearing_prototype/
+│── public/ # Static assets
+│── src/ # Main React application
+│ ├── components/ # UI components
+│ ├── pages/ # Dashboard pages
+│ ├── assets/ # Images/icons
+│ └── App.jsx # Root component
+│── index.html
+│── package.json
+│── tailwind.config.js
+│── vite.config.js
+│── README.md
+
+
+---
+
+## 🔬 System Concept (Engineering Perspective)
+
+Smart bearings integrate sensors directly into mechanical components to monitor:
+- Temperature  
+- Load  
+- Vibration  
+
+These sensors enable **real-time condition monitoring and predictive maintenance**, reducing downtime and improving efficiency. :contentReference[oaicite:1]{index=1}  
+
+---
+
+## 📈 Key Insights
+
+- Predictive maintenance reduces unexpected machine failures  
+- Real-time monitoring improves operational efficiency  
+- Sensor-driven systems enable data-driven decision-making  
+- Digital dashboards simplify complex industrial data  
+
+---
+
+## 💡 Business Impact
+
+- ⏱️ Reduces machine downtime  
+- 💰 Lowers maintenance costs  
+- ⚙️ Improves equipment lifespan  
+- 📊 Enables Industry 4.0 adoption  
+
+---
